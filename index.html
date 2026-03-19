@@ -4,74 +4,110 @@
     <meta charset="UTF-8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: monospace; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Inter', sans-serif; color: #00ffcc; }
+        #ui {
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 20px; padding: 15px 25px; background: rgba(255,255,255,0.05);
+            border-radius: 40px; backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1);
+            z-index: 1000;
+        }
+        button { 
+            background: none; border: none; color: rgba(0, 255, 204, 0.3); 
+            font-family: monospace; letter-spacing: 2px; cursor: pointer; transition: 0.3s;
+        }
+        button.active { color: #00ffcc; text-shadow: 0 0 10px #00ffcc; }
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; justify-content: center; align-items: center;
-            background: #050505; color: #00ffcc; z-index: 1000; cursor: pointer;
+            background: #050505; z-index: 2000; cursor: pointer;
         }
-        #status { position: absolute; top: 10px; left: 10px; color: #00ffcc; font-size: 10px; }
     </style>
 </head>
 <body>
-    <div id="status">V1.7: GHOST_MODE (NO-AI)</div>
-    <div id="overlay" onclick="startCamera()">
-        <h1>TAP TO ACTIVATE SENSORS</h1>
+    <div id="overlay" onclick="startVibe()"><h1>START VIBE STATION V2.0</h1></div>
+    
+    <div id="ui">
+        <button id="btn-ghost" class="active" onclick="setMode('ghost')">GHOST</button>
+        <button id="btn-focus" onclick="setMode('focus')">FOCUS</button>
+        <button id="btn-trace" onclick="setMode('trace')">TRACE</button>
     </div>
 
 <script>
-let video;
-let prevFrame;
-let threshold = 50; // Sensitivity of motion detection
+let video, prevFrame;
+let mode = 'ghost';
+let motionAmount = 0;
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
-    pixelDensity(1); 
+    pixelDensity(1);
 }
 
-function startCamera() {
+function startVibe() {
     document.getElementById('overlay').style.display = 'none';
     video = createCapture(VIDEO);
-    video.size(160, 120); // Low res for lightning fast processing
+    video.size(160, 120);
     video.hide();
 }
 
+function setMode(m) {
+    mode = m;
+    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-' + m).classList.add('active');
+    background(0); // Clear screen on switch
+}
+
 function draw() {
-    background(0, 0, 0, 30); // Motion trails
+    if (mode === 'ghost') background(0, 0, 0, 40);
+    if (mode === 'focus') background(0, 0, 0, 80);
+    if (mode === 'trace') background(0, 0, 0, 1); // Very slow fade
 
     if (video && video.loadedmetadata) {
         video.loadPixels();
-        
-        if (!prevFrame) {
-            prevFrame = createImage(video.width, video.height);
-        }
+        if (!prevFrame) prevFrame = createImage(video.width, video.height);
         prevFrame.loadPixels();
 
-        // Loop through pixels to find movement
-        for (let y = 0; y < video.height; y += 2) {
-            for (let x = 0; x < video.width; x += 2) {
-                let index = (x + y * video.width) * 4;
+        motionAmount = 0;
+
+        for (let y = 0; y < video.height; y += 3) {
+            for (let x = 0; x < video.width; x += 3) {
+                let i = (x + y * video.width) * 4;
+                let diff = dist(video.pixels[i], 0, 0, prevFrame.pixels[i], 0, 0);
                 
-                let r1 = video.pixels[index];
-                let r2 = prevFrame.pixels[index];
-                
-                // If the color changed significantly, draw "Ghost Light"
-                let diff = dist(r1, 0, 0, r2, 0, 0); 
-                
-                if (diff > threshold) {
-                    let screenX = map(x, video.width, 0, 0, width); // Mirroring
-                    let screenY = map(y, 0, video.height, 0, height);
+                if (diff > 50) {
+                    motionAmount++;
+                    let sx = map(x, video.width, 0, 0, width);
+                    let sy = map(y, 0, video.height, 0, height);
                     
-                    noStroke();
-                    fill(0, 255, 204, 150);
-                    ellipse(screenX, screenY, 8, 8);
+                    if (mode === 'ghost' || mode === 'trace') {
+                        noStroke();
+                        fill(0, 255, 204, mode === 'trace' ? 20 : 150);
+                        ellipse(sx, sy, mode === 'trace' ? 15 : 10);
+                    }
                 }
             }
         }
-        
-        // Save current frame for next comparison
         prevFrame.copy(video, 0, 0, video.width, video.height, 0, 0, video.width, video.height);
     }
+
+    if (mode === 'focus') drawFocusUI();
+}
+
+function drawFocusUI() {
+    let h = hour();
+    let m = nf(minute(), 2);
+    let s = nf(second(), 2);
+    
+    // UI Wakes up based on motionAmount
+    let wake = map(motionAmount, 0, 100, 20, 255, true);
+    
+    textAlign(CENTER, CENTER);
+    textFont('Courier New');
+    fill(0, 255, 204, wake);
+    textSize(width * 0.2);
+    text(`${h}:${m}`, width/2, height/2);
+    
+    textSize(20);
+    text("MOTION DETECTED - SYSTEM ACTIVE", width/2, height/2 + 150);
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
