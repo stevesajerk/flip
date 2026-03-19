@@ -3,92 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <script src="https://unpkg.com/ml5@1.0.1/dist/ml5.min.js"></script>
-    <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: monospace; }
-        #overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; justify-content: center; align-items: center;
-            background: #050505; color: #00ffcc; z-index: 1000; cursor: pointer;
-        }
-    </style>
+    <style> body { margin: 0; background: #000; overflow: hidden; } </style>
 </head>
 <body>
-    <div id="overlay" onclick="startEverything()"><h1>WAKE THE INFERNO V3.1</h1></div>
-
 <script>
-let video;
-let bodySegmentation;
-let segmentMask;
-let isReady = false;
-
-function startEverything() {
-    document.getElementById('overlay').style.display = 'none';
-    
-    video = createCapture(VIDEO, () => {
-        // Options to use MediaPipe (much faster)
-        const options = {
-            runtime: 'mediapipe', 
-            solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation'
-        };
-        bodySegmentation = ml5.bodySegmentation('selfieSegmentation', options, () => {
-            isReady = true;
-        });
-    });
-    video.size(320, 240); // Lower res for better performance
-    video.hide();
-}
+let video, prevFrame;
+let particles = [];
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
-    pixelDensity(1); 
+    video = createCapture(VIDEO);
+    video.size(160, 120);
+    video.hide();
+    pixelDensity(1);
 }
 
 function draw() {
-    background(0, 0, 0, 15); // Deep trails for flame look
+    background(0, 0, 0, 50); // Motion blur trail
 
-    if (isReady && video) {
-        bodySegmentation.detect(video, (result) => {
-            segmentMask = result.mask;
-        });
+    if (video.loadedmetadata) {
+        video.loadPixels();
+        if (!prevFrame) prevFrame = createImage(video.width, video.height);
+        prevFrame.loadPixels();
+
+        // Check for motion to create sparks
+        for (let y = 0; y < video.height; y += 6) {
+            for (let x = 0; x < video.width; x += 6) {
+                let i = (x + y * video.width) * 4;
+                let diff = abs(video.pixels[i] - prevFrame.pixels[i]);
+                
+                if (diff > 50) { 
+                    let sx = map(x, video.width, 0, 0, width);
+                    let sy = map(y, 0, video.height, 0, height);
+                    // Add a new spark at the motion point
+                    particles.push(new Spark(sx, sy));
+                }
+            }
+        }
+        prevFrame.copy(video, 0, 0, video.width, video.height, 0, 0, video.width, video.height);
+    }
+
+    // Update and draw sparks
+    for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update();
+        particles[i].show();
+        if (particles[i].finished()) {
+            particles.splice(i, 1);
+        }
     }
     
-    if (segmentMask) {
-        push();
-        translate(width, 0);
-        scale(-1, 1);
-        
-        // --- THE INFERNO EFFECT ---
-        blendMode(ADD); 
-        
-        // Layer 1: The Deep Blue/Red Base
-        tint(0, 255); 
-        image(segmentMask, 0, 0, width, height);
-        
-        // Layer 2: The Core Heat (Yellows)
-        tint(60, 255); 
-        image(segmentMask, random(-5,5), random(-5,5), width, height);
-        
-        // Layer 3: The Pulse (HSB Gradient)
-        colorMode(HSB);
-        for (let i = 0; i < height; i += 20) {
-            let hue = map(i, 0, height, 0, 40); // Shift from yellow to red down the body
-            let sat = map(i, 0, height, 200, 255);
-            tint(hue, sat, 255, 100);
-            
-            // This crops the mask into small strips and paints them a gradient color
-            let yPos = map(i, 0, height, 0, height);
-            let ySize = map(20, 0, height, 0, height);
-            image(segmentMask, 0, yPos, width, ySize, 0, i, video.width, 20);
-        }
-        
-        pop();
-        
-        blendMode(BLEND); // Reset
-    }
+    // Limit particles to keep it smooth
+    if (particles.length > 300) particles.splice(0, 20);
 }
 
-function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+class Spark {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = random(-2, 2);
+        this.vy = random(-1, -5); // Float upward
+        this.alpha = 255;
+        this.color = color(255, random(50, 150), 0); // Fire colors (Orange/Red)
+    }
+    finished() { return this.alpha < 0; }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.alpha -= 5;
+    }
+    show() {
+        noStroke();
+        fill(red(this.color), green(this.color), blue(this.color), this.alpha);
+        ellipse(this.x, this.y, random(4, 8));
+    }
+}
 </script>
 </body>
 </html>
