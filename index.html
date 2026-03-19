@@ -13,20 +13,14 @@
         }
         #console {
             position: absolute; top: 10px; left: 10px; color: #00ffcc;
-            font-size: 10px; z-index: 1100; pointer-events: none; opacity: 0.7;
-        }
-        #version-tag {
-            position: absolute; bottom: 15px; right: 20px;
-            color: rgba(0, 255, 204, 0.4); font-size: 12px;
+            font-size: 10px; z-index: 1100; pointer-events: none;
         }
     </style>
 </head>
 <body>
-    <div id="console">System: Initializing...</div>
-    <div id="version-tag">VIBE_STATION_V1.3</div>
-    
+    <div id="console">V1.4: Direct Pixel Mode</div>
     <div id="overlay" onclick="startEverything()">
-        <h1>TAP TO START V1.3</h1>
+        <h1>TAP TO INITIALIZE V1.4</h1>
     </div>
 
 <script>
@@ -34,42 +28,33 @@ let video;
 let bodySegmentation;
 let segment;
 let isReady = false;
-let log = document.getElementById('console');
-
-function updateLog(msg) {
-    log.innerHTML += "<br>> " + msg;
-    console.log(msg);
-}
 
 function startEverything() {
     document.getElementById('overlay').style.display = 'none';
-    updateLog("Requesting Camera...");
     
-    video = createCapture(VIDEO, (stream) => {
-        updateLog("Camera Stream Active.");
-        updateLog("Loading AI Model (Selfie)...");
-        
+    // Using simple video capture
+    video = createCapture(VIDEO, () => {
         const options = {
             runtime: 'mediapipe',
             solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation'
         };
-
         bodySegmentation = ml5.bodySegmentation('selfieSegmentation', options, () => {
-            updateLog("AI MODEL LOADED.");
             isReady = true;
+            document.getElementById('console').innerText = "V1.4: ACTIVE";
         });
     });
-    
     video.size(640, 480);
     video.hide();
 }
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
+    background(0);
 }
 
 function draw() {
-    background(0, 0, 0, 40); 
+    // We use a slightly heavier fade to prevent ghosting issues
+    background(0, 0, 0, 50); 
 
     if (isReady && video) {
         bodySegmentation.detect(video, (result) => {
@@ -78,14 +63,24 @@ function draw() {
     }
     
     if (segment) {
+        // Instead of image(), we use the p5 graphics buffer
         push();
         translate(width, 0);
         scale(-1, 1);
-        blendMode(ADD);
-        tint(0, 255, 204, 255); 
+        
+        // This is a "Force Draw" 
+        // We draw the mask at the full size of the canvas
         image(segment, 0, 0, width, height);
+        
+        // Let's add a "fallback" circle that follows the middle of the screen
+        // so we know the draw loop is actually running
         pop();
-        blendMode(BLEND);
+        
+        noStroke();
+        fill(0, 255, 204, 100);
+        // If the screen is still black, this tiny dot in the corner 
+        // will tell us if the p5.js draw loop is alive.
+        ellipse(20, 20, 5, 5); 
     }
 }
 
