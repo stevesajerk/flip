@@ -5,28 +5,28 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
     <script src="https://unpkg.com/ml5@1.0.1/dist/ml5.min.js"></script>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: monospace; }
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; justify-content: center; align-items: center;
             background: #050505; color: #00ffcc; z-index: 1000; cursor: pointer;
-            letter-spacing: 5px; text-align: center;
+        }
+        #console {
+            position: absolute; top: 10px; left: 10px; color: #00ffcc;
+            font-size: 10px; z-index: 1100; pointer-events: none; opacity: 0.7;
         }
         #version-tag {
             position: absolute; bottom: 15px; right: 20px;
             color: rgba(0, 255, 204, 0.4); font-size: 12px;
-            z-index: 1100; pointer-events: none;
         }
-        canvas { filter: contrast(1.5) brightness(1.2); }
     </style>
 </head>
 <body>
-    <div id="version-tag">VIBE_STATION_V1.2</div>
+    <div id="console">System: Initializing...</div>
+    <div id="version-tag">VIBE_STATION_V1.3</div>
+    
     <div id="overlay" onclick="startEverything()">
-        <div>
-            <h1>WAKE VIBE STATION</h1>
-            <p style="font-size: 10px; opacity: 0.5;">CLICK TO INITIALIZE AI</p>
-        </div>
+        <h1>TAP TO START V1.3</h1>
     </div>
 
 <script>
@@ -34,15 +34,32 @@ let video;
 let bodySegmentation;
 let segment;
 let isReady = false;
+let log = document.getElementById('console');
+
+function updateLog(msg) {
+    log.innerHTML += "<br>> " + msg;
+    console.log(msg);
+}
 
 function startEverything() {
     document.getElementById('overlay').style.display = 'none';
-    video = createCapture(VIDEO, () => {
-        bodySegmentation = ml5.bodySegmentation('selfieSegmentation', { 
-            runtime: 'mediapipe', 
-            solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation' 
-        }, () => { isReady = true; });
+    updateLog("Requesting Camera...");
+    
+    video = createCapture(VIDEO, (stream) => {
+        updateLog("Camera Stream Active.");
+        updateLog("Loading AI Model (Selfie)...");
+        
+        const options = {
+            runtime: 'mediapipe',
+            solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation'
+        };
+
+        bodySegmentation = ml5.bodySegmentation('selfieSegmentation', options, () => {
+            updateLog("AI MODEL LOADED.");
+            isReady = true;
+        });
     });
+    
     video.size(640, 480);
     video.hide();
 }
@@ -52,8 +69,7 @@ function setup() {
 }
 
 function draw() {
-    // Deep trails for a "liquid neon" look
-    background(0, 0, 0, 35); 
+    background(0, 0, 0, 40); 
 
     if (isReady && video) {
         bodySegmentation.detect(video, (result) => {
@@ -63,21 +79,11 @@ function draw() {
     
     if (segment) {
         push();
-        // Correct Mirroring for Portrait Flip
         translate(width, 0);
         scale(-1, 1);
-        
-        // Blend mode ADD makes the overlaps "glow" white/bright mint
         blendMode(ADD);
-        
-        // Main Silhouette
         tint(0, 255, 204, 255); 
         image(segment, 0, 0, width, height);
-        
-        // Secondary "Glow Layer" (slightly offset)
-        tint(0, 150, 255, 100); 
-        image(segment, random(-2, 2), random(-2, 2), width, height);
-        
         pop();
         blendMode(BLEND);
     }
