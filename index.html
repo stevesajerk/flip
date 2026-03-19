@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <style> body { margin: 0; background: #000; overflow: hidden; } </style>
+    <style> body { margin: 0; background: #000; overflow: hidden; font-family: monospace; } </style>
 </head>
 <body>
 <script>
@@ -18,12 +18,10 @@ function setup() {
     video.size(160, 120);
     video.hide();
     pixelDensity(1);
-    background(0);
 }
 
 function draw() {
-    // We draw a semi-transparent black layer to create motion trails
-    background(0, 0, 0, 30); 
+    background(0, 0, 0, 40); 
 
     if (video.loadedmetadata) {
         video.loadPixels();
@@ -32,68 +30,68 @@ function draw() {
 
         let totalMotion = 0;
 
-        for (let y = 0; y < video.height; y += 4) {
-            for (let x = 0; x < video.width; x += 4) {
+        // Draw Motion Particles
+        for (let y = 0; y < video.height; y += 3) {
+            for (let x = 0; x < video.width; x += 3) {
                 let i = (x + y * video.width) * 4;
                 let diff = dist(video.pixels[i], 0, 0, prevFrame.pixels[i], 0, 0);
                 
-                if (diff > 40) { // Lowered threshold to detect smaller movements
+                if (diff > 45) {
                     totalMotion++;
                     let sx = map(x, video.width, 0, 0, width);
                     let sy = map(y, 0, video.height, 0, height);
                     
-                    colorMode(HSB);
-                    fill(frameCount % 360, 80, 100);
                     noStroke();
-                    ellipse(sx, sy, 15, 15);
-                    colorMode(RGB);
+                    fill(0, 255, 204, 200); // Bright Mint
+                    ellipse(sx + random(-5,5), sy + random(-5,5), 15, 15);
                 }
             }
         }
 
-        // --- NEW TRIGGER LOGIC ---
-        // If there is a person present (some motion) but they aren't dashing around
+        // --- FREEZE LOGIC ---
         if (totalMotion > 10 && totalMotion < 150) {
-            timer += 2; // Speed up the countdown
-            
-            // Visual "Charging" Circle so you know it's working
+            timer += 2;
+            // Visual feedback: A ring that closes in on the center
             noFill();
-            stroke(0, 255, 204);
-            strokeWeight(2);
-            ellipse(width/2, height/2, timer * 2, timer * 2);
+            stroke(255);
+            strokeWeight(4);
+            ellipse(width/2, height/2, 500 - (timer*4), 500 - (timer*4));
             
-            if (timer > 100) { 
-                frozenImg = get(); // CAPTURE!
+            fill(255);
+            noStroke();
+            textAlign(CENTER);
+            textSize(40);
+            text("HOLD POSE...", width/2, height/2 + 300);
+
+            if (timer > 120) { 
+                frozenImg = get(); // Take the photo
                 flashAlpha = 255;
-                ghostAlpha = 200; // Reset ghost visibility
+                ghostAlpha = 255; 
                 timer = 0;
             }
         } else {
-            timer = max(0, timer - 1); // Slowly reset if they move too much
+            timer = max(0, timer - 2);
         }
 
-        // Show the persistent Ghost
+        // Draw the Frozen Ghost (Persistent Layer)
         if (frozenImg && ghostAlpha > 0) {
             push();
-            tint(0, 255, 204, ghostAlpha);
+            tint(0, 255, 204, ghostAlpha); 
             image(frozenImg, 0, 0);
             pop();
-            ghostAlpha -= 0.5; // Slowly fade the ghost over ~30 seconds
+            ghostAlpha -= 0.8; // Fades out over about 15 seconds
         }
 
-        // The Camera Flash
+        // The White Flash
         if (flashAlpha > 0) {
             fill(255, flashAlpha);
-            noStroke();
             rect(0, 0, width, height);
-            flashAlpha -= 15;
+            flashAlpha -= 20;
         }
 
         prevFrame.copy(video, 0, 0, video.width, video.height, 0, 0, video.width, video.height);
     }
 }
-
-function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 </script>
 </body>
 </html>
