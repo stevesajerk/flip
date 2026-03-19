@@ -8,10 +8,9 @@
 <body>
 <script>
 let video, prevFrame, frozenImg;
-let motionScore = 0;
-let freezeThreshold = 45; // Adjust this to make it easier/harder to trigger
 let timer = 0;
 let flashAlpha = 0;
+let ghostAlpha = 0;
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
@@ -19,63 +18,75 @@ function setup() {
     video.size(160, 120);
     video.hide();
     pixelDensity(1);
+    background(0);
 }
 
 function draw() {
-    background(0, 0, 0, 45); // Dark background with trail
+    // We draw a semi-transparent black layer to create motion trails
+    background(0, 0, 0, 30); 
 
     if (video.loadedmetadata) {
         video.loadPixels();
         if (!prevFrame) prevFrame = createImage(video.width, video.height);
         prevFrame.loadPixels();
 
-        let currentMotion = 0;
+        let totalMotion = 0;
 
-        for (let y = 0; y < video.height; y += 2) {
-            for (let x = 0; x < video.width; x += 2) {
+        for (let y = 0; y < video.height; y += 4) {
+            for (let x = 0; x < video.width; x += 4) {
                 let i = (x + y * video.width) * 4;
                 let diff = dist(video.pixels[i], 0, 0, prevFrame.pixels[i], 0, 0);
                 
-                if (diff > 55) {
-                    currentMotion++;
+                if (diff > 40) { // Lowered threshold to detect smaller movements
+                    totalMotion++;
                     let sx = map(x, video.width, 0, 0, width);
                     let sy = map(y, 0, video.height, 0, height);
                     
-                    // RAINBOW TRAILS
                     colorMode(HSB);
                     fill(frameCount % 360, 80, 100);
                     noStroke();
-                    ellipse(sx, sy, 12, 12);
+                    ellipse(sx, sy, 15, 15);
                     colorMode(RGB);
                 }
             }
         }
 
-        // FREEZE LOGIC: If moving just a little (posing)
-        if (currentMotion > 20 && currentMotion < 150) {
-            timer++;
-            if (timer > 45) { // Held for ~1.5 seconds
-                frozenImg = get(); // Take the snapshot
-                flashAlpha = 255;  // Trigger the visual flash
+        // --- NEW TRIGGER LOGIC ---
+        // If there is a person present (some motion) but they aren't dashing around
+        if (totalMotion > 10 && totalMotion < 150) {
+            timer += 2; // Speed up the countdown
+            
+            // Visual "Charging" Circle so you know it's working
+            noFill();
+            stroke(0, 255, 204);
+            strokeWeight(2);
+            ellipse(width/2, height/2, timer * 2, timer * 2);
+            
+            if (timer > 100) { 
+                frozenImg = get(); // CAPTURE!
+                flashAlpha = 255;
+                ghostAlpha = 200; // Reset ghost visibility
                 timer = 0;
             }
         } else {
-            timer = 0;
+            timer = max(0, timer - 1); // Slowly reset if they move too much
         }
 
-        // Draw the Frozen Ghost (Persistent Layer)
-        if (frozenImg) {
+        // Show the persistent Ghost
+        if (frozenImg && ghostAlpha > 0) {
             push();
-            tint(0, 255, 204, 100); // Tint it mint green so it looks like a ghost
+            tint(0, 255, 204, ghostAlpha);
             image(frozenImg, 0, 0);
             pop();
+            ghostAlpha -= 0.5; // Slowly fade the ghost over ~30 seconds
         }
 
-        // Draw the Camera Flash
+        // The Camera Flash
         if (flashAlpha > 0) {
             fill(255, flashAlpha);
+            noStroke();
             rect(0, 0, width, height);
-            flashAlpha -= 10; // Fade the flash out quickly
+            flashAlpha -= 15;
         }
 
         prevFrame.copy(video, 0, 0, video.width, video.height, 0, 0, video.width, video.height);
