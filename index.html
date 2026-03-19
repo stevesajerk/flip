@@ -8,7 +8,8 @@
 <body>
 <script>
 let video, prevFrame, frozenImg;
-let timer = 0;
+let poseStartTime = 0;
+let isPosing = false;
 let flashAlpha = 0;
 let ghostAlpha = 0;
 
@@ -18,11 +19,10 @@ function setup() {
     video.size(160, 120);
     video.hide();
     pixelDensity(1);
-    background(0);
 }
 
 function draw() {
-    background(0, 0, 0, 45); 
+    background(0, 0, 0, 40); 
 
     if (video.loadedmetadata) {
         video.loadPixels();
@@ -31,78 +31,82 @@ function draw() {
 
         let totalMotion = 0;
 
-        // Draw Motion Particles (The Rainbow Vibe)
+        // Draw Motion
         for (let y = 0; y < video.height; y += 4) {
             for (let x = 0; x < video.width; x += 4) {
                 let i = (x + y * video.width) * 4;
                 let diff = dist(video.pixels[i], video.pixels[i+1], video.pixels[i+2], 
                                 prevFrame.pixels[i], prevFrame.pixels[i+1], prevFrame.pixels[i+2]);
                 
-                if (diff > 60) { // Higher threshold to ignore background "noise"
+                if (diff > 50) { 
                     totalMotion++;
                     let sx = map(x, video.width, 0, 0, width);
                     let sy = map(y, 0, video.height, 0, height);
-                    
-                    colorMode(HSB);
-                    fill(frameCount % 360, 80, 100);
+                    fill(0, 255, 204, 150);
                     noStroke();
-                    ellipse(sx, sy, 20, 20); // Bigger particles for better "painting"
-                    colorMode(RGB);
+                    ellipse(sx, sy, 15, 15);
                 }
             }
         }
 
-        // --- STABLE FREEZE LOGIC ---
-        // If there is some person-sized motion, but they are relatively still
-        if (totalMotion > 5 && totalMotion < 100) {
-            timer += 1.5; // Steady count up
-            
-            // Visual Countdown Ring
+        // --- NEW TIME-BASED LOGIC ---
+        // If motion is low, start/continue the timer
+        if (totalMotion > 2 && totalMotion < 120) {
+            if (!isPosing) {
+                poseStartTime = millis();
+                isPosing = true;
+            }
+
+            let elapsed = millis() - poseStartTime;
+            let remaining = 3000 - elapsed; // 3 second countdown
+
+            // Visual Ring
             noFill();
             stroke(0, 255, 204);
-            strokeWeight(10);
-            let ringSize = map(timer, 0, 100, 600, 50);
-            ellipse(width/2, height/2, ringSize, ringSize);
-            
-            // Text instructions
+            strokeWeight(15);
+            let ringSize = map(remaining, 3000, 0, 600, 0);
+            ellipse(width/2, height/2, max(0, ringSize), max(0, ringSize));
+
+            // Text Countdown
             fill(255);
             noStroke();
             textAlign(CENTER);
-            textSize(width * 0.05);
-            text("3... 2... 1...", width/2, height/2 + 20);
-            
-            if (timer > 100) { 
-                frozenImg = get(); // Take the photo
+            textSize(100);
+            text(ceil(remaining/1000), width/2, height/2 + 30);
+
+            if (remaining <= 0) {
+                frozenImg = get();
                 flashAlpha = 255;
-                ghostAlpha = 255; 
-                timer = 0;
+                ghostAlpha = 255;
+                isPosing = false; // Reset
             }
         } else {
-            // If they move too much or walk away, reset slowly so it's not "twitchy"
-            timer = max(0, timer - 0.5);
+            isPosing = false; // Reset if they move too much or walk away
         }
 
-        // Draw the Persistent Ghost
+        // Display Ghost
         if (frozenImg && ghostAlpha > 0) {
             push();
-            tint(0, 255, 204, ghostAlpha); 
+            tint(0, 255, 204, ghostAlpha);
             image(frozenImg, 0, 0);
             pop();
-            ghostAlpha -= 0.5; // Fades out slowly
+            ghostAlpha -= 0.5;
         }
 
         // Flash
         if (flashAlpha > 0) {
             fill(255, flashAlpha);
             rect(0, 0, width, height);
-            flashAlpha -= 15;
+            flashAlpha -= 20;
         }
+
+        // DEBUG MOTION BAR (Bottom of screen)
+        fill(totalMotion < 120 ? 'green' : 'red');
+        rect(0, height-10, map(totalMotion, 0, 200, 0, width), 10);
 
         prevFrame.copy(video, 0, 0, video.width, video.height, 0, 0, video.width, video.height);
     }
 }
-
-function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 </script>
 </body>
 </html>
