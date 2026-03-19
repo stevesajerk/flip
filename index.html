@@ -31,29 +31,24 @@ function draw() {
 
         let totalMotion = 0;
 
-        for (let y = 0; y < video.height; y += 5) {
-            for (let x = 0; x < video.width; x += 5) {
+        for (let y = 0; y < video.height; y += 6) {
+            for (let x = 0; x < video.width; x += 6) {
                 let i = (x + y * video.width) * 4;
-                // Compare brightness only (faster/more stable)
-                let bright1 = (video.pixels[i] + video.pixels[i+1] + video.pixels[i+2]) / 3;
-                let bright2 = (prevFrame.pixels[i] + prevFrame.pixels[i+1] + prevFrame.pixels[i+2]) / 3;
+                let diff = abs(video.pixels[i] - prevFrame.pixels[i]);
                 
-                if (abs(bright1 - bright2) > 60) { // Higher threshold = ignores more noise
+                if (diff > 50) { 
                     totalMotion++;
                     let sx = map(x, video.width, 0, 0, width);
                     let sy = map(y, 0, video.height, 0, height);
                     fill(0, 255, 204, 180);
                     noStroke();
-                    ellipse(sx, sy, 25, 25);
+                    ellipse(sx, sy, 30, 30);
                 }
             }
         }
 
-        // --- NEW FORGIVING TIMER ---
-        // If motion is very low (standing still), start countdown
-        // If motion is medium (moving arms), we STILL keep the timer going
-        // Only if motion is HUGE (walking away), we reset.
-        if (totalMotion > 0 && totalMotion < 250) { 
+        // --- THE FIXED FINISH LINE ---
+        if (totalMotion > 2 && totalMotion < 300) { 
             if (!isPosing) {
                 poseStartTime = millis();
                 isPosing = true;
@@ -62,50 +57,41 @@ function draw() {
             let elapsed = millis() - poseStartTime;
             let remaining = 3000 - elapsed; 
 
-            // Visual Ring
-            noFill();
-            stroke(0, 255, 204);
-            strokeWeight(20);
-            let ringSize = map(remaining, 3000, 0, 800, 100);
-            if (remaining > 0) ellipse(width/2, height/2, ringSize, ringSize);
-
-            // Large Countdown Text
-            fill(255);
-            noStroke();
-            textAlign(CENTER, CENTER);
-            textSize(150);
-            if (remaining > 0) text(ceil(remaining/1000), width/2, height/2);
-
-            if (remaining <= 0) {
-                frozenImg = get();
+            if (remaining > 0) {
+                // Visual Countdown
+                noFill(); stroke(0, 255, 204); strokeWeight(20);
+                let ringSize = map(remaining, 3000, 0, 600, 100);
+                ellipse(width/2, height/2, ringSize, ringSize);
+                
+                fill(255); noStroke(); textAlign(CENTER, CENTER); textSize(150);
+                text(ceil(remaining/1000), width/2, height/2);
+            } else {
+                // SUCCESS: TRIGGER THE PHOTO
+                frozenImg = get(); 
                 flashAlpha = 255;
                 ghostAlpha = 255;
-                isPosing = false;
+                isPosing = false; 
                 poseStartTime = 0;
             }
-        } else if (totalMotion > 250) {
-            // Only reset if they are moving A LOT
-            isPosing = false;
+        } else if (totalMotion > 300) {
+            isPosing = false; // Reset if they move too much
         }
 
+        // Display Ghost
         if (frozenImg && ghostAlpha > 0) {
             push();
             tint(0, 255, 204, ghostAlpha);
             image(frozenImg, 0, 0);
             pop();
-            ghostAlpha -= 1; 
+            ghostAlpha -= 1.5; // Slowly fades away
         }
 
+        // Flash
         if (flashAlpha > 0) {
             fill(255, flashAlpha);
             rect(0, 0, width, height);
             flashAlpha -= 15;
         }
-
-        // Debug info at the top
-        fill(255);
-        textSize(12);
-        text("MOTION SCORE: " + totalMotion + " (Must stay under 250 to freeze)", 150, 20);
 
         prevFrame.copy(video, 0, 0, video.width, video.height, 0, 0, video.width, video.height);
     }
