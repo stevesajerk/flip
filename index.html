@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <style> body { margin: 0; background: #000; overflow: hidden; font-family: monospace; } </style>
+    <style> body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; } </style>
 </head>
 <body>
 <script>
@@ -18,10 +18,11 @@ function setup() {
     video.size(160, 120);
     video.hide();
     pixelDensity(1);
+    background(0);
 }
 
 function draw() {
-    background(0, 0, 0, 40); 
+    background(0, 0, 0, 45); 
 
     if (video.loadedmetadata) {
         video.loadPixels();
@@ -30,68 +31,78 @@ function draw() {
 
         let totalMotion = 0;
 
-        // Draw Motion Particles
-        for (let y = 0; y < video.height; y += 3) {
-            for (let x = 0; x < video.width; x += 3) {
+        // Draw Motion Particles (The Rainbow Vibe)
+        for (let y = 0; y < video.height; y += 4) {
+            for (let x = 0; x < video.width; x += 4) {
                 let i = (x + y * video.width) * 4;
-                let diff = dist(video.pixels[i], 0, 0, prevFrame.pixels[i], 0, 0);
+                let diff = dist(video.pixels[i], video.pixels[i+1], video.pixels[i+2], 
+                                prevFrame.pixels[i], prevFrame.pixels[i+1], prevFrame.pixels[i+2]);
                 
-                if (diff > 45) {
+                if (diff > 60) { // Higher threshold to ignore background "noise"
                     totalMotion++;
                     let sx = map(x, video.width, 0, 0, width);
                     let sy = map(y, 0, video.height, 0, height);
                     
+                    colorMode(HSB);
+                    fill(frameCount % 360, 80, 100);
                     noStroke();
-                    fill(0, 255, 204, 200); // Bright Mint
-                    ellipse(sx + random(-5,5), sy + random(-5,5), 15, 15);
+                    ellipse(sx, sy, 20, 20); // Bigger particles for better "painting"
+                    colorMode(RGB);
                 }
             }
         }
 
-        // --- FREEZE LOGIC ---
-        if (totalMotion > 10 && totalMotion < 150) {
-            timer += 2;
-            // Visual feedback: A ring that closes in on the center
-            noFill();
-            stroke(255);
-            strokeWeight(4);
-            ellipse(width/2, height/2, 500 - (timer*4), 500 - (timer*4));
+        // --- STABLE FREEZE LOGIC ---
+        // If there is some person-sized motion, but they are relatively still
+        if (totalMotion > 5 && totalMotion < 100) {
+            timer += 1.5; // Steady count up
             
+            // Visual Countdown Ring
+            noFill();
+            stroke(0, 255, 204);
+            strokeWeight(10);
+            let ringSize = map(timer, 0, 100, 600, 50);
+            ellipse(width/2, height/2, ringSize, ringSize);
+            
+            // Text instructions
             fill(255);
             noStroke();
             textAlign(CENTER);
-            textSize(40);
-            text("HOLD POSE...", width/2, height/2 + 300);
-
-            if (timer > 120) { 
+            textSize(width * 0.05);
+            text("3... 2... 1...", width/2, height/2 + 20);
+            
+            if (timer > 100) { 
                 frozenImg = get(); // Take the photo
                 flashAlpha = 255;
                 ghostAlpha = 255; 
                 timer = 0;
             }
         } else {
-            timer = max(0, timer - 2);
+            // If they move too much or walk away, reset slowly so it's not "twitchy"
+            timer = max(0, timer - 0.5);
         }
 
-        // Draw the Frozen Ghost (Persistent Layer)
+        // Draw the Persistent Ghost
         if (frozenImg && ghostAlpha > 0) {
             push();
             tint(0, 255, 204, ghostAlpha); 
             image(frozenImg, 0, 0);
             pop();
-            ghostAlpha -= 0.8; // Fades out over about 15 seconds
+            ghostAlpha -= 0.5; // Fades out slowly
         }
 
-        // The White Flash
+        // Flash
         if (flashAlpha > 0) {
             fill(255, flashAlpha);
             rect(0, 0, width, height);
-            flashAlpha -= 20;
+            flashAlpha -= 15;
         }
 
         prevFrame.copy(video, 0, 0, video.width, video.height, 0, 0, video.width, video.height);
     }
 }
+
+function windowResized() { resizeCanvas(windowWidth, windowHeight); }
 </script>
 </body>
 </html>
