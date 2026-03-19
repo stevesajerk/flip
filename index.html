@@ -3,76 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: monospace; }
-        #overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; justify-content: center; align-items: center;
-            background: #050505; color: #00ffcc; z-index: 1000; cursor: pointer;
-        }
-        #version { position: absolute; bottom: 10px; right: 10px; color: #00ffcc; opacity: 0.3; font-size: 10px; }
+        body { margin: 0; background: #ff0000; overflow: hidden; } /* Red background to see if it loads at all */
     </style>
 </head>
 <body>
-    <div id="version">V1.5_CONSTELLATION_MODE</div>
-    <div id="overlay" onclick="startEverything()">
-        <h1>TAP TO WAKE V1.5</h1>
-    </div>
-
 <script>
-let video;
-let poseNet;
-let poses = [];
-
-function startEverything() {
-    document.getElementById('overlay').style.display = 'none';
-    
-    video = createCapture(VIDEO);
-    video.size(640, 480);
-    video.hide();
-
-    // PoseNet is much lighter on the WebGL context
-    poseNet = ml5.poseNet(video, () => console.log("AI Ready"));
-    poseNet.on('pose', (results) => {
-        poses = results;
-    });
-}
-
 function setup() {
+    // Create a very small, simple canvas first
     createCanvas(windowWidth, windowHeight);
 }
 
 function draw() {
-    background(0, 0, 0, 40); // Motion trails
+    background(0); // Black background
 
-    if (poses.length > 0) {
-        let pose = poses[0].pose;
+    // DRAW A HUGE MINT CIRCLE AT MOUSE/TOUCH
+    fill(0, 255, 204);
+    noStroke();
+    ellipse(mouseX, mouseY, 100, 100);
 
-        push();
-        // Mirror for portrait view
-        translate(width, 0);
-        scale(-1, 1);
-
-        // Draw the "Constellation"
-        for (let i = 0; i < pose.keypoints.length; i++) {
-            let part = pose.keypoints[i];
-            if (part.score > 0.2) {
-                // Map coordinates to big screen
-                let x = map(part.position.x, 0, 640, 0, width);
-                let y = map(part.position.y, 0, 480, 0, height);
-                
-                fill(0, 255, 204);
-                noStroke();
-                ellipse(x, y, 15, 15); // The "Joint" dots
-                
-                // Add a glow effect
-                fill(0, 255, 204, 50);
-                ellipse(x, y, 40, 40);
-            }
-        }
-        pop();
-    }
+    // DRAW A WHITE BOX IN THE CENTER
+    fill(255);
+    rect(width/2 - 25, height/2 - 25, 50, 50);
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
