@@ -7,59 +7,61 @@
 </head>
 <body>
 <script>
-let video, prevFrame;
+let video;
 
 function setup() {
     createCanvas(windowWidth, windowHeight);
+    // We use a slightly higher resolution for a better "Human" shape
     video = createCapture(VIDEO);
-    video.size(160, 120);
+    video.size(320, 240); 
     video.hide();
     pixelDensity(1);
-    background(0);
 }
 
 function draw() {
-    // Very faint fade creates long-lasting "Burn-in" neon trails
-    background(0, 0, 0, 20); 
+    background(0, 0, 0, 80); // Create a "trailing" ghost effect
 
     if (video.loadedmetadata) {
         video.loadPixels();
-        if (!prevFrame) prevFrame = createImage(video.width, video.height);
-        prevFrame.loadPixels();
-
-        // Use ADD mode to make colors "Glow" and "Stack"
-        blendMode(ADD);
         
+        // We scan the video in "Scanlines" (horizontal rows)
         for (let y = 0; y < video.height; y += 4) {
             for (let x = 0; x < video.width; x += 4) {
                 let i = (x + y * video.width) * 4;
-                let diff = dist(video.pixels[i], video.pixels[i+1], video.pixels[i+2], 
-                                prevFrame.pixels[i], prevFrame.pixels[i+1], prevFrame.pixels[i+2]);
                 
-                if (diff > 55) { 
-                    let sx = map(x, video.width, 0, 0, width);
+                // Get the brightness of the pixel
+                let r = video.pixels[i];
+                let g = video.pixels[i+1];
+                let b = video.pixels[i+2];
+                let bright = (r + g + b) / 3;
+
+                // THRESHOLD: Only draw if the pixel is bright (you)
+                // If the room is dark and you are lit, this creates a perfect silhouette
+                if (bright > 80) { 
+                    let sx = map(x, video.width, 0, 0, width); // Mirror it
                     let sy = map(y, 0, video.height, 0, height);
                     
-                    // Generate a "Lightning Bolt" stroke
-                    strokeWeight(random(5, 15));
+                    blendMode(ADD);
                     
-                    // Cycle through Cyberpunk colors
-                    let r = map(sin(frameCount * 0.1), -1, 1, 100, 255);
-                    let g = map(cos(frameCount * 0.1), -1, 1, 0, 255);
-                    stroke(r, g, 255, 180);
+                    // Draw a glowing horizontal "Data Beam"
+                    strokeWeight(random(2, 6));
                     
-                    // Draw a jagged line from movement point
-                    line(sx, sy, sx + random(-40, 40), sy + random(-40, 40));
+                    // Cyberpunk Teal/Mint Color
+                    stroke(0, 255, 204, 150);
                     
-                    // Add a bright core dot
-                    noStroke();
-                    fill(255, 255, 255, 200);
-                    ellipse(sx, sy, 8, 8);
+                    // The line length changes based on how bright you are
+                    let lineLen = map(bright, 80, 255, 10, 60);
+                    line(sx - lineLen, sy, sx + lineLen, sy);
+                    
+                    // Add a tiny white "Spark" in the center of the beam
+                    stroke(255, 255, 255, 200);
+                    strokeWeight(2);
+                    point(sx, sy);
+                    
+                    blendMode(BLEND);
                 }
             }
         }
-        blendMode(BLEND); // Reset blend mode for video processing
-        prevFrame.copy(video, 0, 0, video.width, video.height, 0, 0, video.width, video.height);
     }
 }
 
