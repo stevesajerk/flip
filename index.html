@@ -5,43 +5,37 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
     <script src="https://unpkg.com/ml5@1.0.1/dist/ml5.min.js"></script>
     <style>
-        body { margin: 0; background: #050505; color: #00ffcc; font-family: monospace; overflow: hidden; }
+        body { margin: 0; background: #000; overflow: hidden; }
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; justify-content: center; align-items: center;
-            background: rgba(0,0,0,0.8); z-index: 1000; cursor: pointer;
+            background: #050505; color: #00ffcc; z-index: 1000; cursor: pointer;
+            font-family: sans-serif; letter-spacing: 5px;
         }
-        #status { position: absolute; top: 20px; left: 20px; font-size: 12px; z-index: 1100; }
+        /* This makes the canvas glow like a neon sign */
+        canvas { filter: brightness(1.5) contrast(1.2) drop-shadow(0 0 20px #00ffcc); }
     </style>
 </head>
 <body>
-    <div id="status">System: Waiting for Interaction...</div>
     <div id="overlay" onclick="startEverything()">
-        <h1>TAP TO WAKE VIBE</h1>
+        <h1>WAKE VIBE STATION</h1>
     </div>
 
 <script>
 let video;
 let bodySegmentation;
-let mask;
+let segment;
 let isReady = false;
 
 function startEverything() {
     document.getElementById('overlay').style.display = 'none';
-    document.getElementById('status').innerText = "System: Loading AI Model...";
-    
-    // Create the video capture
     video = createCapture(VIDEO, () => {
-        // Once video is live, start the AI
-        bodySegmentation = ml5.bodySegmentation('selfieSegmentation', { runtime: 'mediapipe', solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation' }, modelLoaded);
+        bodySegmentation = ml5.bodySegmentation('selfieSegmentation', { runtime: 'mediapipe', solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation' }, () => {
+            isReady = true;
+        });
     });
     video.size(640, 480);
     video.hide();
-}
-
-function modelLoaded() {
-    isReady = true;
-    document.getElementById('status').innerText = "System: ACTIVE - Vibe is Live";
 }
 
 function setup() {
@@ -49,29 +43,35 @@ function setup() {
 }
 
 function draw() {
-    background(5, 5, 5, 40); // Motion trail effect
+    // Solid black background to make the neon pop
+    // Change the '10' to '255' if you want NO trails at all
+    background(0, 0, 0, 40); 
 
     if (isReady && video) {
-        // Detect person
-        bodySegmentation.detect(video, gotResults);
+        bodySegmentation.detect(video, (result) => {
+            segment = result.mask;
+        });
     }
     
-    if (mask) {
-        // Draw the "Mirror" silhouette
+    if (segment) {
         push();
-        // Flip the image so it acts like a mirror
+        // Mirror the view
         translate(width, 0);
         scale(-1, 1);
         
-        // Draw the glowing silhouette
-        tint(0, 255, 204, 150); // Electric Mint color
-        image(mask, 0, 0, width, height);
+        // --- THE NEON FIX ---
+        // We use 'Exclusion' or 'Screen' blend mode for that high-end art look
+        blendMode(ADD); 
+        tint(0, 255, 204, 255); // Full opacity Mint
+        image(segment, 0, 0, width, height);
+        
+        // Layering a second slightly offset copy creates a "vibrating" neon effect
+        tint(0, 200, 255, 100); 
+        image(segment, 5, 0, width, height);
+        
         pop();
+        blendMode(BLEND); // Reset blend mode for other elements
     }
-}
-
-function gotResults(result) {
-    mask = result.mask;
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
