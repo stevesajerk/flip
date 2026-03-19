@@ -4,27 +4,74 @@
     <meta charset="UTF-8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
     <style>
-        body { margin: 0; background: #ff0000; overflow: hidden; } /* Red background to see if it loads at all */
+        body { margin: 0; background: #000; overflow: hidden; font-family: monospace; }
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            background: #050505; color: #00ffcc; z-index: 1000; cursor: pointer;
+        }
+        #status { position: absolute; top: 10px; left: 10px; color: #00ffcc; font-size: 10px; }
     </style>
 </head>
 <body>
+    <div id="status">V1.7: GHOST_MODE (NO-AI)</div>
+    <div id="overlay" onclick="startCamera()">
+        <h1>TAP TO ACTIVATE SENSORS</h1>
+    </div>
+
 <script>
+let video;
+let prevFrame;
+let threshold = 50; // Sensitivity of motion detection
+
 function setup() {
-    // Create a very small, simple canvas first
     createCanvas(windowWidth, windowHeight);
+    pixelDensity(1); 
+}
+
+function startCamera() {
+    document.getElementById('overlay').style.display = 'none';
+    video = createCapture(VIDEO);
+    video.size(160, 120); // Low res for lightning fast processing
+    video.hide();
 }
 
 function draw() {
-    background(0); // Black background
+    background(0, 0, 0, 30); // Motion trails
 
-    // DRAW A HUGE MINT CIRCLE AT MOUSE/TOUCH
-    fill(0, 255, 204);
-    noStroke();
-    ellipse(mouseX, mouseY, 100, 100);
+    if (video && video.loadedmetadata) {
+        video.loadPixels();
+        
+        if (!prevFrame) {
+            prevFrame = createImage(video.width, video.height);
+        }
+        prevFrame.loadPixels();
 
-    // DRAW A WHITE BOX IN THE CENTER
-    fill(255);
-    rect(width/2 - 25, height/2 - 25, 50, 50);
+        // Loop through pixels to find movement
+        for (let y = 0; y < video.height; y += 2) {
+            for (let x = 0; x < video.width; x += 2) {
+                let index = (x + y * video.width) * 4;
+                
+                let r1 = video.pixels[index];
+                let r2 = prevFrame.pixels[index];
+                
+                // If the color changed significantly, draw "Ghost Light"
+                let diff = dist(r1, 0, 0, r2, 0, 0); 
+                
+                if (diff > threshold) {
+                    let screenX = map(x, video.width, 0, 0, width); // Mirroring
+                    let screenY = map(y, 0, video.height, 0, height);
+                    
+                    noStroke();
+                    fill(0, 255, 204, 150);
+                    ellipse(screenX, screenY, 8, 8);
+                }
+            }
+        }
+        
+        // Save current frame for next comparison
+        prevFrame.copy(video, 0, 0, video.width, video.height, 0, 0, video.width, video.height);
+    }
 }
 
 function windowResized() { resizeCanvas(windowWidth, windowHeight); }
