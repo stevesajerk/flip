@@ -9,7 +9,6 @@
 <script>
 let video, prevFrame, frozenImg;
 let poseStartTime = 0;
-let isPosing = false;
 let flashAlpha = 0;
 let ghostAlpha = 0;
 
@@ -22,75 +21,69 @@ function setup() {
 }
 
 function draw() {
-    background(0, 0, 0, 45); 
+    background(0, 0, 0, 40); 
 
     if (video.loadedmetadata) {
         video.loadPixels();
         if (!prevFrame) prevFrame = createImage(video.width, video.height);
         prevFrame.loadPixels();
 
-        let totalMotion = 0;
-
-        for (let y = 0; y < video.height; y += 6) {
-            for (let x = 0; x < video.width; x += 6) {
+        let motionCount = 0;
+        for (let y = 0; y < video.height; y += 5) {
+            for (let x = 0; x < video.width; x += 5) {
                 let i = (x + y * video.width) * 4;
                 let diff = abs(video.pixels[i] - prevFrame.pixels[i]);
-                
-                if (diff > 50) { 
-                    totalMotion++;
+                if (diff > 40) { 
+                    motionCount++;
                     let sx = map(x, video.width, 0, 0, width);
                     let sy = map(y, 0, video.height, 0, height);
-                    fill(0, 255, 204, 180);
+                    fill(0, 255, 204, 200);
                     noStroke();
-                    ellipse(sx, sy, 30, 30);
+                    ellipse(sx, sy, 35, 35); // Bigger dots for better silhouettes
                 }
             }
         }
 
-        // --- THE FIXED FINISH LINE ---
-        if (totalMotion > 2 && totalMotion < 300) { 
-            if (!isPosing) {
-                poseStartTime = millis();
-                isPosing = true;
-            }
-
+        // --- NEW UNSTOPPABLE TRIGGER ---
+        // If we see a person (motionCount > 5)
+        if (motionCount > 5) {
+            if (poseStartTime === 0) poseStartTime = millis();
+            
             let elapsed = millis() - poseStartTime;
-            let remaining = 3000 - elapsed; 
+            let timer = 3000 - elapsed;
 
-            if (remaining > 0) {
-                // Visual Countdown
-                noFill(); stroke(0, 255, 204); strokeWeight(20);
-                let ringSize = map(remaining, 3000, 0, 600, 100);
-                ellipse(width/2, height/2, ringSize, ringSize);
+            if (timer > 0) {
+                // Draw Big Countdown
+                noFill(); stroke(0, 255, 204); strokeWeight(25);
+                ellipse(width/2, height/2, map(timer, 3000, 0, 600, 50));
                 
-                fill(255); noStroke(); textAlign(CENTER, CENTER); textSize(150);
-                text(ceil(remaining/1000), width/2, height/2);
+                fill(255); noStroke(); textAlign(CENTER, CENTER); textSize(200);
+                text(ceil(timer/1000), width/2, height/2);
             } else {
-                // SUCCESS: TRIGGER THE PHOTO
-                frozenImg = get(); 
+                // BOOM: Capture the frame
+                frozenImg = get();
                 flashAlpha = 255;
                 ghostAlpha = 255;
-                isPosing = false; 
-                poseStartTime = 0;
+                poseStartTime = millis(); // Auto-restart timer for the next kid
             }
-        } else if (totalMotion > 300) {
-            isPosing = false; // Reset if they move too much
+        } else {
+            poseStartTime = 0; // Reset only if the room is empty
         }
 
-        // Display Ghost
+        // Persistent Ghost
         if (frozenImg && ghostAlpha > 0) {
             push();
             tint(0, 255, 204, ghostAlpha);
             image(frozenImg, 0, 0);
             pop();
-            ghostAlpha -= 1.5; // Slowly fades away
+            ghostAlpha -= 1.0; 
         }
 
-        // Flash
+        // White Flash
         if (flashAlpha > 0) {
             fill(255, flashAlpha);
             rect(0, 0, width, height);
-            flashAlpha -= 15;
+            flashAlpha -= 20;
         }
 
         prevFrame.copy(video, 0, 0, video.width, video.height, 0, 0, video.width, video.height);
