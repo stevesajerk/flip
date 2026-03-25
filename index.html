@@ -1,71 +1,1722 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
-    <style> body { margin: 0; background: #000; overflow: hidden; } </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Word Clock</title>
+<style>
+:root{
+  --hour-color:#FFFFFF;
+  --min-color:#777777;
+  --sec-color:#333333;
+  --bg:#000000;
+  --pad:32px;
+  --msg-primary:#FFFFFF;
+  --msg-secondary:#888888;
+}
+body.night-mode{
+  --hour-color:#CC0000;
+  --min-color:#992200;
+  --sec-color:#3a0800;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{
+  background:var(--bg);
+  margin:0;
+  height:100dvh;
+  font-family:"Arial Rounded MT Bold","Helvetica Rounded",Arial,sans-serif;
+  overflow:hidden;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+/* ── Screens ──────────────────────────────────────────── */
+.screen{
+  position:absolute;inset:0;display:none;
+  flex-direction:column;justify-content:center;align-items:stretch;
+  padding:env(safe-area-inset-top,20px) var(--pad) env(safe-area-inset-bottom,20px);
+}
+.screen.active{display:flex}
+
+/* ── Clock screen ─────────────────────────────────────── */
+#screen-clock{justify-content:stretch}
+#hours-container{
+  display:flex;justify-content:center;align-items:center;
+  flex:45 1 0;overflow:hidden;
+}
+#minutes-container{
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  flex:38 1 0;overflow:hidden;
+}
+#seconds-container{
+  display:flex;flex-direction:row;justify-content:center;align-items:center;
+  gap:0.3em;flex:17 1 0;overflow:hidden;
+}
+.word{
+  display:none;font-weight:bold;text-transform:uppercase;
+  text-align:center;white-space:nowrap;line-height:1;
+  color:transparent;flex-shrink:0;
+}
+.word.active{display:block}
+.hour-active{color:var(--hour-color)}
+.min-active{color:var(--min-color)}
+.sec-active{color:var(--sec-color)}
+
+
+
+/* ── Wi-Fi speed strip ──────────────────────────────────── */
+#wifi-strip{
+  position:absolute;
+  top:0;left:0;right:0;
+  height:10%;
+  display:none;
+  flex-direction:column;
+  align-items:center;justify-content:center;
+  z-index:20;pointer-events:none;
+  padding:env(safe-area-inset-top,12px) var(--pad) 0;
+}
+#wifi-strip.visible{ display:flex; }
+#wifi-speed{
+  font-weight:bold;text-transform:uppercase;
+  text-align:center;line-height:1;
+  white-space:nowrap;
+  color:var(--sec-color);
+}
+#wifi-desc{
+  font-weight:bold;text-transform:uppercase;
+  text-align:center;line-height:1;margin-top:0.15em;
+  white-space:nowrap;
+  color:var(--sec-color);
+  opacity:0.6;
+}
+/* When wifi strip is visible, quote zone drops below it */
+#screen-clock.wifi-on #quote-overlay{
+  top:10%;
+  height:55%;
+}
+#screen-clock.wifi-on.quotes-on .home-panel{ top:65%; }
+
+/* ── Quote overlay ────────────────────────────────────── */
+#quote-overlay{
+  position:absolute;
+  top:0;left:0;right:0;
+  display:none;flex-direction:column;
+  align-items:center;justify-content:center;
+  z-index:15;pointer-events:none;
+  padding:env(safe-area-inset-top,20px) var(--pad) 0;
+  /* takes top 65% when quotes-on */
+  height:65%;
+}
+#quote-overlay.visible{display:flex}
+#quote-text{
+  font-weight:bold;text-transform:uppercase;
+  text-align:center;line-height:1.2;
+  color:var(--hour-color);
+  white-space:normal;word-break:break-word;
+  opacity:0;
+  transition:opacity 1.4s ease;
+  padding:0 8px;
+}
+#quote-text.show{opacity:1}
+
+/* Clock band shrinks to bottom third when quotes are on */
+#screen-clock.quotes-on{
+  justify-content:flex-end;
+}
+#screen-clock.quotes-on #hours-container{
+  flex:none;height:13%;overflow:hidden;
+}
+#screen-clock.quotes-on #minutes-container{
+  flex:none;height:12%;overflow:hidden;
+}
+#screen-clock.quotes-on #seconds-container{
+  flex:none;height:7%;overflow:hidden;
+}
+
+/* ── Home cycle panels ────────────────────────────────── */
+/* Overlay panels fade over the clock words */
+.home-panel{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  justify-content:center;align-items:center;
+  background:transparent;
+  padding:env(safe-area-inset-top,20px) var(--pad) env(safe-area-inset-bottom,20px);
+  opacity:0;pointer-events:none;
+  transition:opacity 0.7s ease;
+}
+.home-panel.visible{opacity:1}
+/* Only show panels in home mode */
+body:not(.home-mode) .home-panel{display:none!important}
+/* When quotes are on, cycle panels must live in the bottom third only */
+#screen-clock.quotes-on .home-panel{
+  top:65%;
+  padding-top:4px;
+  justify-content:center;
+}
+
+.date-dayname{
+  font-size:18vw;font-weight:bold;text-transform:uppercase;
+  color:var(--hour-color);line-height:1;white-space:nowrap;text-align:center;
+}
+.date-full{
+  font-size:10vw;font-weight:bold;text-transform:uppercase;
+  color:var(--min-color);line-height:1;white-space:nowrap;
+  letter-spacing:0.04em;text-align:center;
+}
+.weather-temp{
+  font-size:28vw;font-weight:bold;
+  color:var(--hour-color);line-height:1;white-space:nowrap;text-align:center;
+}
+.weather-desc{
+  font-size:8vw;font-weight:bold;text-transform:uppercase;
+  color:var(--min-color);line-height:1;white-space:nowrap;text-align:center;
+}
+
+/* ── Info overlay (date + weather bar, non-cycling) ───── */
+#info-overlay{
+  position:absolute;inset:0;display:none;
+  flex-direction:column;justify-content:flex-end;align-items:stretch;
+  padding:0 0 env(safe-area-inset-bottom,8px);
+  pointer-events:none;z-index:10;
+}
+#info-overlay.visible{display:flex}
+/* Replace seconds row with info block when visible */
+#info-overlay.visible ~ #seconds-container,
+#screen-clock:has(#info-overlay.visible) #seconds-container{
+  visibility:hidden;
+}
+#info-date,#info-weather{
+  font-weight:bold;text-transform:uppercase;
+  letter-spacing:0.04em;line-height:1;
+  white-space:nowrap;text-align:center;
+  color:var(--sec-color);
+  /* font-size set dynamically by layoutInfoBar() */
+}
+
+/* ── Message screens ──────────────────────────────────── */
+.msg-screen{align-items:center;text-align:center;gap:0.3em}
+.msg-line{font-weight:bold;text-transform:uppercase;line-height:1.1;white-space:nowrap}
+.msg-title{font-size:18vw;color:var(--msg-primary)}
+.msg-secondary{font-size:5.5vw;color:var(--msg-secondary)}
+.msg-time{font-size:18vw;color:var(--msg-secondary)}
+.msg-countdown{font-size:22vw;color:var(--msg-primary);font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+.msg-gap{height:0.5em}
+
+/* ── Be Back In — duration picker overlay ────────────── */
+#bbi-picker{
+  position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,0.93);
+  display:none;flex-direction:column;
+  justify-content:center;align-items:center;gap:2em;
+  padding:env(safe-area-inset-top,20px) 40px env(safe-area-inset-bottom,20px);
+}
+#bbi-picker.open{display:flex}
+.bbi-label{
+  font-size:5vw;font-weight:bold;text-transform:uppercase;
+  color:rgba(255,255,255,0.35);letter-spacing:0.12em;text-align:center;
+}
+.bbi-choices{
+  display:flex;flex-direction:column;gap:1em;width:100%;max-width:420px;
+}
+.bbi-btn{
+  padding:0.8em 1em;border-radius:16px;
+  font-size:5.5vw;font-weight:bold;text-transform:uppercase;
+  letter-spacing:0.06em;cursor:pointer;text-align:center;
+  border:2px solid rgba(255,255,255,0.2);
+  color:#fff;background:rgba(255,255,255,0.07);
+}
+.bbi-btn:active{background:rgba(255,255,255,0.22)}
+.bbi-cancel{
+  font-size:3.5vw;font-weight:bold;text-transform:uppercase;
+  letter-spacing:0.1em;color:rgba(255,255,255,0.25);
+  cursor:pointer;padding:0.5em 1em;
+}
+
+/* ── Menu button ──────────────────────────────────────── */
+#menu-btn{
+  position:fixed;
+  bottom:calc(env(safe-area-inset-bottom,20px) + 20px);
+  right:28px;
+  width:54px;height:54px;border-radius:50%;
+  background:rgba(255,255,255,0.1);
+  border:1.5px solid rgba(255,255,255,0.2);
+  color:rgba(255,255,255,0.7);font-size:22px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;opacity:0;pointer-events:none;
+  transition:opacity .4s ease;z-index:100;
+}
+#menu-btn.visible{opacity:1;pointer-events:all}
+
+/* ── Menu panel ───────────────────────────────────────── */
+#menu-panel{
+  position:fixed;
+  bottom:calc(env(safe-area-inset-bottom,20px) + 88px);
+  right:18px;
+  background:rgba(18,18,18,0.97);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:16px;padding:6px 0;min-width:290px;
+  display:none;flex-direction:column;
+  z-index:200;box-shadow:0 12px 40px rgba(0,0,0,0.9);
+}
+#menu-panel.open{display:flex}
+.menu-section-title{
+  padding:10px 20px 4px;font-size:10px;font-weight:bold;
+  letter-spacing:0.15em;text-transform:uppercase;
+  color:rgba(255,255,255,0.25);
+}
+.menu-divider{height:1px;background:rgba(255,255,255,0.07);margin:4px 0}
+.menu-item{
+  padding:14px 20px;color:rgba(255,255,255,0.55);
+  font-size:13px;font-weight:bold;
+  text-transform:uppercase;letter-spacing:0.08em;
+  cursor:pointer;display:flex;align-items:center;gap:12px;
+  transition:background .15s,color .15s;
+}
+.menu-item:active{background:rgba(255,255,255,0.08)}
+.menu-item.selected{color:#fff}
+.menu-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.2);flex-shrink:0}
+.menu-item.selected .menu-dot{background:#fff}
+#mode-toggle-row{
+  padding:12px 20px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+#mode-toggle-row>span{
+  font-size:13px;font-weight:bold;text-transform:uppercase;
+  letter-spacing:0.08em;color:rgba(255,255,255,0.55);
+}
+#mode-toggle{
+  display:flex;background:rgba(255,255,255,0.08);
+  border-radius:20px;padding:3px;gap:2px;
+}
+.mode-btn{
+  padding:6px 14px;border-radius:16px;
+  font-size:11px;font-weight:bold;
+  text-transform:uppercase;letter-spacing:0.08em;
+  color:rgba(255,255,255,0.4);cursor:pointer;
+  transition:background .2s,color .2s;
+}
+.mode-btn.active{background:rgba(255,255,255,0.18);color:#fff}
+body.home-mode  .work-only{display:none!important}
+body:not(.home-mode) .home-only{display:none!important}
+
+
+/* ── Left style button ────────────────────────────────── */
+#style-btn{
+  position:fixed;
+  bottom:calc(env(safe-area-inset-bottom,20px) + 20px);
+  left:28px;
+  width:54px;height:54px;border-radius:50%;
+  background:rgba(255,255,255,0.1);
+  border:1.5px solid rgba(255,255,255,0.2);
+  color:rgba(255,255,255,0.7);font-size:20px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;opacity:0;pointer-events:none;
+  transition:opacity .4s ease;z-index:100;
+}
+#style-btn.visible{opacity:1;pointer-events:all}
+
+/* ── Left style panel ─────────────────────────────────── */
+#style-panel{
+  position:fixed;
+  bottom:calc(env(safe-area-inset-bottom,20px) + 88px);
+  left:18px;
+  background:rgba(18,18,18,0.97);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:16px;padding:6px 0;min-width:290px;
+  display:none;flex-direction:column;
+  z-index:200;box-shadow:0 12px 40px rgba(0,0,0,0.9);
+  max-height:80vh;overflow-y:auto;
+}
+#style-panel.open{display:flex}
+
+/* Palette swatches */
+.palette-options{
+  display:flex;gap:8px;flex-wrap:wrap;
+  padding:8px 20px 12px;
+}
+.palette-swatch{
+  width:44px;height:44px;border-radius:10px;
+  cursor:pointer;border:2px solid transparent;
+  transition:border-color .2s,transform .15s;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;
+}
+.palette-swatch:active{transform:scale(0.9)}
+.palette-swatch.selected{border-color:#fff}
+
+/* Font items */
+.font-item{
+  padding:11px 16px;color:rgba(255,255,255,0.55);
+  font-size:13px;font-weight:bold;
+  text-transform:uppercase;letter-spacing:0.06em;
+  cursor:pointer;display:flex;align-items:center;gap:12px;
+  transition:background .15s,color .15s;
+  margin:0 4px;border-radius:8px;
+}
+.font-item:active{background:rgba(255,255,255,0.08)}
+.font-item.selected{color:#fff}
+.font-item .menu-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.2);flex-shrink:0}
+.font-item.selected .menu-dot{background:#fff}
+.font-preview{
+  font-size:16px;color:rgba(255,255,255,0.4);
+  margin-left:auto;letter-spacing:0;text-transform:none;font-weight:normal;
+}
+.font-item.selected .font-preview{color:rgba(255,255,255,0.8)}
+
+/* Holiday banner */
+#holiday-banner{
+  display:none;
+  position:fixed;top:0;left:0;right:0;
+  z-index:50;pointer-events:none;
+  text-align:center;
+  font-size:3.5vw;
+  padding:env(safe-area-inset-top,12px) 16px 10px;
+  font-weight:bold;letter-spacing:0.08em;text-transform:uppercase;
+  color:rgba(255,255,255,0.5);
+}
+#holiday-banner.visible{display:block}
+
+/* ── First-run picker ─────────────────────────────────── */
+#mode-picker{
+  position:fixed;inset:0;z-index:500;background:#000;
+  display:flex;flex-direction:column;
+  justify-content:center;align-items:center;gap:2em;
+  padding:env(safe-area-inset-top,20px) 40px env(safe-area-inset-bottom,20px);
+  opacity:1;transition:opacity .35s ease;
+}
+#mode-picker.hidden{opacity:0;pointer-events:none}
+.picker-title{
+  font-size:7vw;font-weight:bold;text-transform:uppercase;
+  color:rgba(255,255,255,0.4);letter-spacing:0.1em;text-align:center;
+}
+.picker-subtitle{
+  font-size:4vw;font-weight:bold;text-transform:uppercase;
+  color:rgba(255,255,255,0.2);letter-spacing:0.08em;text-align:center;
+  margin-top:-1.2em;
+}
+.picker-buttons{display:flex;gap:1.5em}
+.picker-btn{
+  padding:0.6em 1.6em;border-radius:50px;
+  font-size:6vw;font-weight:bold;text-transform:uppercase;
+  letter-spacing:0.08em;cursor:pointer;
+  border:2px solid rgba(255,255,255,0.3);
+  color:#fff;background:rgba(255,255,255,0.08);
+}
+.picker-btn:active{background:rgba(255,255,255,0.2)}
+</style>
 </head>
 <body>
-<script>
-let video;
 
-function setup() {
-    createCanvas(windowWidth, windowHeight);
-    // We use a slightly higher resolution for a better "Human" shape
-    video = createCapture(VIDEO);
-    video.size(320, 240); 
-    video.hide();
-    pixelDensity(1);
+<!-- ══ BACKGROUND CANVAS ═══════════════════════════ -->
+<canvas id="bg-canvas" style="position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;"></canvas>
+
+<!-- ══ FIRST-RUN PICKER ════════════════════════════════ -->
+<div id="mode-picker">
+  <div class="picker-title">Word Clock</div>
+  <div class="picker-subtitle">Choose your mode</div>
+  <div class="picker-buttons">
+    <div class="picker-btn" id="pick-work">Work</div>
+    <div class="picker-btn" id="pick-home">Home</div>
+  </div>
+</div>
+
+<!-- ══ BE BACK IN — duration picker ═══════════════════ -->
+<div id="bbi-picker">
+  <div class="bbi-label">We will be back in…</div>
+  <div class="bbi-choices">
+    <div class="bbi-btn" data-mins="5">5 minutes</div>
+    <div class="bbi-btn" data-mins="10">10 minutes</div>
+    <div class="bbi-btn" data-mins="30">½ hour</div>
+    <div class="bbi-btn" data-mins="60">1 hour</div>
+  </div>
+  <div class="bbi-cancel" id="bbi-cancel">Cancel</div>
+</div>
+
+<!-- ══ CLOCK SCREEN ════════════════════════════════════ -->
+<div id="screen-clock" class="screen active">
+  <div id="hours-container">
+    <span class="word" id="h-1">ONE</span>
+    <span class="word" id="h-2">TWO</span>
+    <span class="word" id="h-3">THREE</span>
+    <span class="word" id="h-4">FOUR</span>
+    <span class="word" id="h-5">FIVE</span>
+    <span class="word" id="h-6">SIX</span>
+    <span class="word" id="h-7">SEVEN</span>
+    <span class="word" id="h-8">EIGHT</span>
+    <span class="word" id="h-9">NINE</span>
+    <span class="word" id="h-10">TEN</span>
+    <span class="word" id="h-11">ELEVEN</span>
+    <span class="word" id="h-12">TWELVE</span>
+  </div>
+  <div id="minutes-container">
+    <span class="word" id="m-20">TWENTY</span>
+    <span class="word" id="m-30">THIRTY</span>
+    <span class="word" id="m-40">FORTY</span>
+    <span class="word" id="m-50">FIFTY</span>
+    <span class="word" id="m-oclock">O'CLOCK</span>
+    <span class="word" id="m-o">O'</span>
+    <span class="word" id="m-1">ONE</span>
+    <span class="word" id="m-2">TWO</span>
+    <span class="word" id="m-3">THREE</span>
+    <span class="word" id="m-4">FOUR</span>
+    <span class="word" id="m-5">FIVE</span>
+    <span class="word" id="m-6">SIX</span>
+    <span class="word" id="m-7">SEVEN</span>
+    <span class="word" id="m-8">EIGHT</span>
+    <span class="word" id="m-9">NINE</span>
+    <span class="word" id="m-10">TEN</span>
+    <span class="word" id="m-11">ELEVEN</span>
+    <span class="word" id="m-12">TWELVE</span>
+    <span class="word" id="m-13">THIRTEEN</span>
+    <span class="word" id="m-14">FOURTEEN</span>
+    <span class="word" id="m-15">FIFTEEN</span>
+    <span class="word" id="m-16">SIXTEEN</span>
+    <span class="word" id="m-17">SEVENTEEN</span>
+    <span class="word" id="m-18">EIGHTEEN</span>
+    <span class="word" id="m-19">NINETEEN</span>
+  </div>
+  <div id="seconds-container">
+    <!-- teens -->
+    <span class="word" id="s-10">TEN</span>
+    <span class="word" id="s-11">ELEVEN</span>
+    <span class="word" id="s-12">TWELVE</span>
+    <span class="word" id="s-13">THIRTEEN</span>
+    <span class="word" id="s-14">FOURTEEN</span>
+    <span class="word" id="s-15">FIFTEEN</span>
+    <span class="word" id="s-16">SIXTEEN</span>
+    <span class="word" id="s-17">SEVENTEEN</span>
+    <span class="word" id="s-18">EIGHTEEN</span>
+    <span class="word" id="s-19">NINETEEN</span>
+    <!-- tens -->
+    <span class="word" id="s-20">TWENTY</span>
+    <span class="word" id="s-30">THIRTY</span>
+    <span class="word" id="s-40">FORTY</span>
+    <span class="word" id="s-50">FIFTY</span>
+    <!-- units -->
+    <span class="word" id="s-1">ONE</span>
+    <span class="word" id="s-2">TWO</span>
+    <span class="word" id="s-3">THREE</span>
+    <span class="word" id="s-4">FOUR</span>
+    <span class="word" id="s-5">FIVE</span>
+    <span class="word" id="s-6">SIX</span>
+    <span class="word" id="s-7">SEVEN</span>
+    <span class="word" id="s-8">EIGHT</span>
+    <span class="word" id="s-9">NINE</span>
+  </div>
+
+
+  <!-- Wi-Fi speed strip (very top) -->
+  <div id="wifi-strip">
+    <div id="wifi-speed">TESTING...</div>
+    <div id="wifi-desc"></div>
+  </div>
+
+  <!-- Quote overlay (top) -->
+  <div id="quote-overlay">
+    <div id="quote-text"></div>
+  </div>
+
+  <!-- Info bar (work mode / home Time Only / home Time+Date+Weather static) -->
+  <div id="info-overlay">
+    <div id="info-date"></div>
+    <div id="info-weather"></div>
+  </div>
+
+  <!-- Home cycling panels (home mode only, sit on top of clock words) -->
+  <!-- Panel: date -->
+  <div id="home-date-panel" class="home-panel">
+    <div id="date-dayname" class="date-dayname">MONDAY</div>
+    <div id="date-full" class="date-full">JANUARY 1</div>
+  </div>
+  <!-- Panel: weather -->
+  <div id="home-weather-panel" class="home-panel">
+    <div id="weather-temp" class="weather-temp">—°</div>
+    <div id="weather-desc" class="weather-desc">LOADING</div>
+  </div>
+
+</div><!-- /screen-clock -->
+
+<!-- ══ BE BACK IN — countdown screen ═════════════════ -->
+<div id="screen-beback" class="screen msg-screen work-only">
+  <div class="msg-line msg-secondary">WE WILL BE BACK IN</div>
+  <div id="beback-countdown" class="msg-line msg-countdown">—</div>
+</div>
+
+<!-- ══ LUNCH TIME ══════════════════════════════════════ -->
+<div id="screen-lunch" class="screen msg-screen work-only">
+  <div class="msg-line msg-title">LUNCH</div>
+  <div class="msg-line msg-title">TIME</div>
+  <div class="msg-gap"></div>
+  <div class="msg-line msg-secondary">WE WILL BE BACK AT</div>
+  <div class="msg-line msg-time">12:30</div>
+</div>
+
+<!-- ══ LUNCH COUNTDOWN ═════════════════════════════════ -->
+<div id="screen-countdown" class="screen msg-screen work-only">
+  <div class="msg-line msg-title">LUNCH</div>
+  <div class="msg-line msg-title">TIME</div>
+  <div class="msg-gap"></div>
+  <div class="msg-line msg-secondary">WE WILL BE BACK IN</div>
+  <div id="countdown-display" class="msg-line msg-countdown">60:00</div>
+</div>
+
+<!-- ══ MEETING ═════════════════════════════════════════ -->
+<div id="screen-meeting" class="screen msg-screen work-only">
+  <div class="msg-line msg-secondary" style="font-size:8vw">SORRY</div>
+  <div class="msg-gap"></div>
+  <div class="msg-line msg-title">MEETING</div>
+  <div class="msg-line msg-title">IN</div>
+  <div class="msg-line msg-title">PROGRESS</div>
+</div>
+
+<!-- ══ CLOSED ══════════════════════════════════════════ -->
+<div id="screen-closed" class="screen msg-screen work-only">
+  <div class="msg-line msg-title" style="font-size:22vw">CLOSED</div>
+  <div class="msg-gap"></div>
+  <div class="msg-line msg-secondary">WE ARE OPEN</div>
+  <div class="msg-line msg-secondary">MON – FRI</div>
+  <div class="msg-line msg-secondary">7:30 – 4:30</div>
+  <div class="msg-gap"></div>
+  <div class="msg-line msg-secondary">EMAIL US AT</div>
+  <div class="msg-line msg-secondary" style="text-transform:none"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c4aca1a8b4a0a1b7af84a8a7a7eaa7a5">[email&#160;protected]</a></div>
+</div>
+
+<!-- ══ HOLIDAY BANNER ═══════════════════════════ -->
+<div id="holiday-banner"></div>
+
+<!-- ══ STYLE MENU (left) ═══════════════════════ -->
+<div id="style-btn">✦</div>
+<div id="style-panel">
+
+  <div class="menu-section-title">Font</div>
+  <div class="font-item selected" data-font="arial-rounded">
+    <span class="menu-dot"></span>Arial Rounded
+    <span class="font-preview" style="font-family:&apos;Arial Rounded MT Bold&apos;,Arial,sans-serif">Abc</span>
+  </div>
+  <div class="font-item" data-font="helvetica">
+    <span class="menu-dot"></span>Helvetica
+    <span class="font-preview" style="font-family:Helvetica,Arial,sans-serif">Abc</span>
+  </div>
+  <div class="font-item" data-font="georgia">
+    <span class="menu-dot"></span>Georgia
+    <span class="font-preview" style="font-family:Georgia,serif">Abc</span>
+  </div>
+  <div class="font-item" data-font="courier">
+    <span class="menu-dot"></span>Courier
+    <span class="font-preview" style="font-family:&apos;Courier New&apos;,monospace">Abc</span>
+  </div>
+  <div class="font-item" data-font="impact">
+    <span class="menu-dot"></span>Impact
+    <span class="font-preview" style="font-family:Impact,&apos;Arial Narrow&apos;,sans-serif">Abc</span>
+  </div>
+
+  <div class="menu-divider"></div>
+  <div class="menu-section-title">Colour Palette</div>
+  <div class="palette-options">
+    <div class="palette-swatch selected" data-palette="auto"   title="Auto (Season)"    style="background:linear-gradient(135deg,#7EC8A0 0%,#F4C842 33%,#E8754A 66%,#6BBBD4 100%)">🗓️</div>
+    <div class="palette-swatch"          data-palette="spring" title="Spring"            style="background:linear-gradient(135deg,#A8E6A3,#F7C6D5)">🌸</div>
+    <div class="palette-swatch"          data-palette="summer" title="Summer"            style="background:linear-gradient(135deg,#FFD166,#06BCC1)">☀️</div>
+    <div class="palette-swatch"          data-palette="fall"   title="Fall"              style="background:linear-gradient(135deg,#E8754A,#C9A84C)">🍂</div>
+    <div class="palette-swatch"          data-palette="winter" title="Winter"            style="background:linear-gradient(135deg,#6BBBD4,#C5E3F7)">❄️</div>
+    <div class="palette-swatch"          data-palette="mono"   title="Classic White"     style="background:#222;border-color:rgba(255,255,255,0.15)">⬜</div>
+    <div class="palette-swatch"          data-palette="amber"  title="Amber"             style="background:linear-gradient(135deg,#FF9F1C,#4a2b00)">🟠</div>
+    <div class="palette-swatch"          data-palette="green"  title="Matrix Green"      style="background:linear-gradient(135deg,#39FF14,#003300)">🟩</div>
+  </div>
+
+  <div class="menu-divider"></div>
+  <div class="menu-section-title">Weather Style</div>
+  <div class="font-item selected" data-wxstyle="words-emoji">
+    <span class="menu-dot"></span>Words &amp; Emoji
+    <span class="font-preview">☀️ Sunny</span>
+  </div>
+  <div class="font-item" data-wxstyle="words">
+    <span class="menu-dot"></span>Words Only
+    <span class="font-preview">Sunny</span>
+  </div>
+  <div class="font-item" data-wxstyle="emoji">
+    <span class="menu-dot"></span>Emoji Only
+    <span class="font-preview">☀️</span>
+  </div>
+
+  <div class="menu-divider"></div>
+  <div class="menu-section-title">Extras</div>
+  <div class="menu-item" id="holiday-toggle">
+    <span class="menu-dot"></span>Holiday Surprises
+    <span style="margin-left:auto;font-size:11px;color:rgba(255,255,255,0.3)" id="holiday-status">OFF</span>
+  </div>
+
+</div>
+
+<!-- ══ MENU ════════════════════════════════════════════ -->
+<div id="menu-btn">&#9776;</div>
+<div id="menu-panel">
+
+  <div id="mode-toggle-row">
+    <span>Mode</span>
+    <div id="mode-toggle">
+      <div class="mode-btn" data-mode="work">Work</div>
+      <div class="mode-btn" data-mode="home">Home</div>
+    </div>
+  </div>
+
+  <div class="menu-divider"></div>
+
+  <!-- Work screens -->
+  <div class="menu-section-title work-only">Screens</div>
+  <div class="menu-item work-only" data-screen="screen-clock"><span class="menu-dot"></span>Time</div>
+  <div class="menu-item work-only" data-screen="screen-beback"><span class="menu-dot"></span>We Will Be Back In…</div>
+  <div class="menu-item work-only" data-screen="screen-lunch"><span class="menu-dot"></span>Lunch Time – 12:30</div>
+  <div class="menu-item work-only" data-screen="screen-countdown"><span class="menu-dot"></span>Lunch Time – Countdown</div>
+  <div class="menu-item work-only" data-screen="screen-meeting"><span class="menu-dot"></span>Meeting</div>
+  <div class="menu-item work-only" data-screen="screen-closed"><span class="menu-dot"></span>Closed</div>
+
+  <!-- Work display -->
+  <div class="menu-divider work-only"></div>
+  <div class="menu-section-title work-only">Display</div>
+  <div class="menu-item work-only" data-info="off"><span class="menu-dot"></span>Time Only</div>
+  <div class="menu-item work-only" data-info="on"><span class="menu-dot"></span>Time, Date &amp; Weather</div>
+  <div class="menu-divider work-only"></div>
+  <div class="menu-section-title work-only">Quotes</div>
+  <div class="menu-item work-only" id="quote-toggle-work"><span class="menu-dot"></span>Inspirational Quotes
+    <span style="margin-left:auto;font-size:11px;color:rgba(255,255,255,0.3)" id="quote-status-work">OFF</span>
+  </div>
+  <div class="menu-divider work-only"></div>
+  <div class="menu-section-title work-only">Wi-Fi</div>
+  <div class="menu-item work-only" id="wifi-toggle-work"><span class="menu-dot"></span>Show Wi-Fi Speed
+    <span style="margin-left:auto;font-size:11px;color:rgba(255,255,255,0.3)" id="wifi-status-work">OFF</span>
+  </div>
+
+  <!-- Home display -->
+  <div class="menu-section-title home-only">Display</div>
+  <div class="menu-item home-only" data-home="time"><span class="menu-dot"></span>Time Only</div>
+  <div class="menu-item home-only" data-home="time-date-weather"><span class="menu-dot"></span>Time, Date &amp; Weather</div>
+  <div class="menu-item home-only" data-home="cycle"><span class="menu-dot"></span>Cycle: Time → Date → Weather</div>
+  <div class="menu-divider home-only"></div>
+  <div class="menu-section-title home-only">Quotes</div>
+  <div class="menu-item home-only" id="quote-toggle-home"><span class="menu-dot"></span>Inspirational Quotes
+    <span style="margin-left:auto;font-size:11px;color:rgba(255,255,255,0.3)" id="quote-status-home">OFF</span>
+  </div>
+  <div class="menu-divider home-only"></div>
+  <div class="menu-section-title home-only">Wi-Fi</div>
+  <div class="menu-item home-only" id="wifi-toggle-home"><span class="menu-dot"></span>Show Wi-Fi Speed
+    <span style="margin-left:auto;font-size:11px;color:rgba(255,255,255,0.3)" id="wifi-status-home">OFF</span>
+  </div>
+
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+(function(){
+
+// ── DOM ────────────────────────────────────────────────
+const hoursEl          = document.getElementById('hours-container');
+const minutesEl        = document.getElementById('minutes-container');
+const secondsEl        = document.getElementById('seconds-container');
+const modePicker       = document.getElementById('mode-picker');
+const menuBtn          = document.getElementById('menu-btn');
+const menuPanel        = document.getElementById('menu-panel');
+const infoOverlay      = document.getElementById('info-overlay');
+const infoDateEl       = document.getElementById('info-date');
+const infoWeatherEl    = document.getElementById('info-weather');
+const countdownDisplay = document.getElementById('countdown-display');
+const bbiPicker        = document.getElementById('bbi-picker');
+const bebackCountdown  = document.getElementById('beback-countdown');
+const homeDatePanel    = document.getElementById('home-date-panel');
+const homeWeatherPanel = document.getElementById('home-weather-panel');
+const dateDayname      = document.getElementById('date-dayname');
+const dateFull         = document.getElementById('date-full');
+const weatherTempEl    = document.getElementById('weather-temp');
+const weatherDescEl    = document.getElementById('weather-desc');
+
+// ── Config ─────────────────────────────────────────────
+const WORK_NIGHT_START = 16*60+30;
+const WORK_NIGHT_END   =  7*60+30;
+const HOME_NIGHT_START = 21*60;
+const HOME_NIGHT_END   =  6*60;
+const OPEN_M           =  7*60+30;
+const CLOSE_M          = 16*60+30;
+const CYCLE_SECS       = 4;   // seconds per panel when cycling
+const LAT = 45.5017, LON = -73.5673;
+const WMO = {
+  0: {e:'☀️', w:'Clear'},
+  1: {e:'🌤️', w:'Mostly Clear'},
+  2: {e:'⛅', w:'Partly Cloudy'},
+  3: {e:'☁️', w:'Overcast'},
+  45:{e:'🌫️', w:'Foggy'},
+  48:{e:'🌫️', w:'Icy Fog'},
+  51:{e:'🌦️', w:'Light Drizzle'},
+  53:{e:'🌦️', w:'Drizzle'},
+  55:{e:'🌧️', w:'Heavy Drizzle'},
+  61:{e:'🌧️', w:'Light Rain'},
+  63:{e:'🌧️', w:'Rain'},
+  65:{e:'🌧️', w:'Heavy Rain'},
+  71:{e:'🌨️', w:'Light Snow'},
+  73:{e:'❄️', w:'Snow'},
+  75:{e:'❄️', w:'Heavy Snow'},
+  77:{e:'🌨️', w:'Snow Grains'},
+  80:{e:'🌦️', w:'Rain Showers'},
+  81:{e:'🌧️', w:'Heavy Showers'},
+  82:{e:'⛈️', w:'Violent Showers'},
+  85:{e:'🌨️', w:'Snow Showers'},
+  86:{e:'❄️', w:'Heavy Snow Showers'},
+  95:{e:'⛈️', w:'Thunderstorm'},
+  96:{e:'⛈️', w:'Thunderstorm & Hail'},
+  99:{e:'⛈️', w:'Severe Thunderstorm'}
+};
+
+// ── State ──────────────────────────────────────────────
+let ticker         = null;
+let hideTimer      = null;
+let countdownEnd   = null;
+let countdownTick  = null;
+let bebackEnd      = null;
+let bebackTick     = null;
+let cycleTimer     = null;
+let cycleIndex     = 0;
+let currentMode    = localStorage.getItem('clockMode')    || null;
+let infoMode       = localStorage.getItem('infoMode')     || 'off';  // work mode display
+let homeDisplay    = localStorage.getItem('homeDisplay')  || 'time'; // home mode display
+let manualOverride = false;
+let lastDateStr    = '';
+let weatherFetched = false;
+const firstRun = currentMode === null;
+
+// ── Clock words ────────────────────────────────────────
+function hideAll(c){
+  c.querySelectorAll('.word').forEach(el=>{
+    el.style.display='none';
+    el.className='word';
+    el.style.fontSize='';
+  });
+}
+function showWord(id,cls){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.style.display='block';
+  el.classList.add('active',cls);
 }
 
-function draw() {
-    background(0, 0, 0, 80); // Create a "trailing" ghost effect
+// ── Layout engine — uses window dimensions for iPad ────
+// Using window.innerWidth/Height avoids the iPad Safari
+// issue where position:absolute elements report 0 clientHeight
+function layoutClock(){
+  const padH = parseInt(getComputedStyle(document.documentElement)
+    .getPropertyValue('--pad'))||32;
+  const W = window.innerWidth - padH*2;
+  const quotesOn = document.getElementById('screen-clock').classList.contains('quotes-on');
 
-    if (video.loadedmetadata) {
-        video.loadPixels();
-        
-        // We scan the video in "Scanlines" (horizontal rows)
-        for (let y = 0; y < video.height; y += 4) {
-            for (let x = 0; x < video.width; x += 4) {
-                let i = (x + y * video.width) * 4;
-                
-                // Get the brightness of the pixel
-                let r = video.pixels[i];
-                let g = video.pixels[i+1];
-                let b = video.pixels[i+2];
-                let bright = (r + g + b) / 3;
+  // When quotes are on the clock occupies bottom 35% of screen.
+  // Divide that 35% as hours:45%, minutes:38%, seconds:17% of the clock band.
+  // When normal the clock occupies full height minus safe-area padding.
+  const fullH   = window.innerHeight - 40;
+  const clockH  = quotesOn ? window.innerHeight * 0.33 : fullH;
 
-                // THRESHOLD: Only draw if the pixel is bright (you)
-                // If the room is dark and you are lit, this creates a perfect silhouette
-                if (bright > 80) { 
-                    let sx = map(x, video.width, 0, 0, width); // Mirror it
-                    let sy = map(y, 0, video.height, 0, height);
-                    
-                    blendMode(ADD);
-                    
-                    // Draw a glowing horizontal "Data Beam"
-                    strokeWeight(random(2, 6));
-                    
-                    // Cyberpunk Teal/Mint Color
-                    stroke(0, 255, 204, 150);
-                    
-                    // The line length changes based on how bright you are
-                    let lineLen = map(bright, 80, 255, 10, 60);
-                    line(sx - lineLen, sy, sx + lineLen, sy);
-                    
-                    // Add a tiny white "Spark" in the center of the beam
-                    stroke(255, 255, 255, 200);
-                    strokeWeight(2);
-                    point(sx, sy);
-                    
-                    blendMode(BLEND);
-                }
-            }
-        }
+  const ratios  = [[hoursEl,0.45],[minutesEl,0.38],[secondsEl,0.17]];
+  ratios.forEach(([con,w],i)=>{
+    const rowH=clockH*w;
+    const active=Array.from(con.querySelectorAll('.word.active'));
+    if(!active.length) return;
+    if(i===1){
+      const lineH=rowH/active.length;
+      active.forEach(el=>{
+        el.style.fontSize='100px';
+        const sh=lineH/el.offsetHeight;
+        const sw=W/el.scrollWidth*0.96;
+        el.style.fontSize=(100*Math.min(sh,sw))+'px';
+      });
+    } else {
+      active.forEach(el=>{el.style.fontSize='100px';});
+      const maxH=Math.max(...active.map(el=>el.offsetHeight));
+      let sz=100*(rowH/maxH);
+      active.forEach(el=>{el.style.fontSize=sz+'px';});
+      const gap=parseFloat(getComputedStyle(con).gap)||0;
+      const tw=active.reduce((s,el)=>s+el.scrollWidth,0)+(active.length-1)*gap;
+      if(tw>W*0.98){
+        sz*=(W*0.98)/tw;
+        active.forEach(el=>{el.style.fontSize=sz+'px';});
+      }
     }
+  });
 }
 
-function windowResized() { resizeCanvas(windowWidth, windowHeight); }
+// ── Info bar layout — scales date & weather to fill width ─
+function layoutInfoBar(){
+  const overlay = document.getElementById('info-overlay');
+  if(!overlay.classList.contains('visible')) return;
+  const padH = parseInt(getComputedStyle(document.documentElement)
+    .getPropertyValue('--pad'))||32;
+  const W = window.innerWidth - padH*2;
+  const quotesOn = document.getElementById('screen-clock').classList.contains('quotes-on');
+  // When quotes on, info bar shares the bottom 33%; each line gets ~half of 17% of that
+  const clockH  = quotesOn ? window.innerHeight * 0.33 : (window.innerHeight - 40);
+  const rowH    = clockH * 0.17 / 2;
+  [infoDateEl, infoWeatherEl].forEach(el=>{
+    if(!el.textContent.trim()) return;
+    el.style.fontSize = '100px';
+    const scaleH = rowH / el.offsetHeight;
+    const scaleW = W / el.scrollWidth * 0.98;
+    el.style.fontSize = (100 * Math.min(scaleH, scaleW)) + 'px';
+  });
+}
+
+// ── Clock update ───────────────────────────────────────
+function updateClock(){
+  const now=new Date();
+  const hrs=now.getHours(), mins=now.getMinutes(), secs=now.getSeconds();
+  const totalM=hrs*60+mins;
+
+  // Night mode
+  const ns=currentMode==='home'?HOME_NIGHT_START:WORK_NIGHT_START;
+  const ne=currentMode==='home'?HOME_NIGHT_END:WORK_NIGHT_END;
+  document.body.classList.toggle('night-mode',totalM>=ns||totalM<ne);
+
+  // Hours
+  hideAll(hoursEl);
+  showWord('h-'+(hrs%12||12),'hour-active');
+
+  // Minutes
+  hideAll(minutesEl);
+  if(mins===0){ showWord('m-oclock','min-active'); }
+  else if(mins<10){ showWord('m-o','min-active'); showWord('m-'+mins,'min-active'); }
+  else if(mins<20){ showWord('m-'+mins,'min-active'); }
+  else {
+    const t=Math.floor(mins/10)*10, u=mins%10;
+    showWord('m-'+t,'min-active');
+    if(u>0) showWord('m-'+u,'min-active');
+  }
+
+  // Seconds — full 1–59 range
+  hideAll(secondsEl);
+  if(secs>0){
+    if(secs<10){
+      showWord('s-'+secs,'sec-active');
+    } else if(secs<20){
+      showWord('s-'+secs,'sec-active');
+    } else {
+      const t=Math.floor(secs/10)*10, u=secs%10;
+      showWord('s-'+t,'sec-active');
+      if(u>0) showWord('s-'+u,'sec-active');
+    }
+  }
+
+  layoutClock();
+  if(infoMode==='on'){ updateInfoDate(now); layoutInfoBar(); }
+
+  ticker=setTimeout(updateClock,1000-(Date.now()%1000));
+}
+
+// ── Info overlay (work mode & home static) ─────────────
+function updateInfoDate(now){
+  const D=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const str=D[now.getDay()]+'  '+M[now.getMonth()]+' '+now.getDate();
+  if(str!==lastDateStr){ lastDateStr=str; infoDateEl.textContent=str; }
+}
+
+let lastWeatherTemp=null, lastWeatherCode=null;
+
+function renderWeather(){
+  if(lastWeatherTemp===null) return;
+  const entry=WMO[lastWeatherCode]||{e:'🌡️',w:'Unknown'};
+  const style=localStorage.getItem('wxStyle')||'words-emoji';
+  let desc;
+  if(style==='emoji')       desc=entry.e;
+  else if(style==='words')  desc=entry.w.toUpperCase();
+  else                      desc=entry.e+'  '+entry.w.toUpperCase();
+  // Info bar (work mode / home static)
+  infoWeatherEl.textContent=desc+'  '+lastWeatherTemp+'°C';
+  layoutInfoBar();
+  // Home cycling panel — big temp + description below
+  weatherTempEl.textContent=lastWeatherTemp+'°';
+  weatherDescEl.textContent=desc;
+}
+
+async function fetchWeather(){
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weathercode&temperature_unit=celsius&timezone=auto`;
+    const data=await(await fetch(url)).json();
+    lastWeatherTemp=Math.round(data.current.temperature_2m);
+    lastWeatherCode=data.current.weathercode;
+    renderWeather();
+    weatherFetched=true;
+  } catch(e){
+    infoWeatherEl.textContent='';
+    weatherDescEl.textContent='Unavailable';
+  }
+  setTimeout(fetchWeather,15*60*1000);
+}
+
+function applyInfoMode(val){
+  infoMode=val;
+  localStorage.setItem('infoMode',val);
+  infoOverlay.classList.toggle('visible',val==='on');
+  // Hide seconds row when info bar is showing (belt-and-braces for older Safari)
+  secondsEl.style.visibility=(val==='on')?'hidden':'';
+  if(val==='on') setTimeout(layoutInfoBar,50);
+  document.querySelectorAll('[data-info]').forEach(el=>
+    el.classList.toggle('selected',el.dataset.info===val));
+  if(val==='on'){ updateInfoDate(new Date()); fetchWeather(); }
+}
+
+// ── Home cycling panels ────────────────────────────────
+function updateDatePanel(){
+  const now=new Date();
+  const DAYS  =['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MONTHS=['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
+  dateDayname.textContent=DAYS[now.getDay()];
+  dateFull.textContent=MONTHS[now.getMonth()]+' '+now.getDate();
+}
+
+// panels for cycling: 0=clock(no overlay), 1=date, 2=weather
+function showCyclePanel(idx){
+  homeDatePanel.classList.toggle('visible',   idx===1);
+  homeWeatherPanel.classList.toggle('visible', idx===2);
+  if(idx===1) updateDatePanel();
+}
+
+function nextCyclePanel(){
+  cycleIndex=(cycleIndex+1)%3;
+  showCyclePanel(cycleIndex);
+  cycleTimer=setTimeout(nextCyclePanel,CYCLE_SECS*1000);
+}
+
+function startCycle(){
+  clearTimeout(cycleTimer);
+  cycleIndex=0;
+  showCyclePanel(0);
+  cycleTimer=setTimeout(nextCyclePanel,CYCLE_SECS*1000);
+  if(!weatherFetched) fetchWeather();
+}
+
+function stopCycle(){
+  clearTimeout(cycleTimer);
+  homeDatePanel.classList.remove('visible');
+  homeWeatherPanel.classList.remove('visible');
+}
+
+// ── Home display mode ──────────────────────────────────
+function applyHomeDisplay(val){
+  homeDisplay=val;
+  localStorage.setItem('homeDisplay',val);
+  document.querySelectorAll('[data-home]').forEach(el=>
+    el.classList.toggle('selected',el.dataset.home===val));
+
+  stopCycle();
+  infoOverlay.classList.remove('visible');
+
+  if(val==='time'){
+    // Just the clock, nothing extra
+  } else if(val==='time-date-weather'){
+    // Static info bar at bottom
+    updateInfoDate(new Date());
+    fetchWeather();
+    infoOverlay.classList.add('visible');
+  } else if(val==='cycle'){
+    startCycle();
+  }
+}
+
+// ── Be Back In ─────────────────────────────────────────
+function fmtMs(ms){
+  const t=Math.max(0,Math.ceil(ms/1000));
+  return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
+}
+function startBeback(mins){
+  clearTimeout(bebackTick);
+  bebackEnd=Date.now()+mins*60*1000;
+  tickBeback();
+}
+function tickBeback(){
+  const rem=bebackEnd-Date.now();
+  bebackCountdown.textContent=fmtMs(rem);
+  if(rem>0) bebackTick=setTimeout(tickBeback,500);
+  else bebackCountdown.textContent='00:00';
+}
+
+// ── Lunch countdown ────────────────────────────────────
+function startCountdown(){
+  clearTimeout(countdownTick);
+  countdownEnd=Date.now()+60*60*1000;
+  tickCountdown();
+}
+function tickCountdown(){
+  const rem=Math.max(0,countdownEnd-Date.now());
+  const t=Math.ceil(rem/1000);
+  countdownDisplay.textContent=
+    String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
+  if(rem>0) countdownTick=setTimeout(tickCountdown,500);
+}
+
+// ── Work schedule ──────────────────────────────────────
+function getAutoScreen(){
+  const now=new Date(), day=now.getDay(), m=now.getHours()*60+now.getMinutes();
+  return(day!==0&&day!==6&&m>=OPEN_M&&m<CLOSE_M)?'screen-clock':'screen-closed';
+}
+function checkSchedule(){
+  if(currentMode!=='work'||manualOverride) return;
+  const target=getAutoScreen();
+  const cur=document.querySelector('.screen.active');
+  if(!cur||cur.id!==target) doSwitch(target,true);
+}
+
+// ── Screen switching ───────────────────────────────────
+function doSwitch(id,auto){
+  manualOverride=(auto!==true);
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('[data-screen]').forEach(el=>
+    el.classList.toggle('selected',el.dataset.screen===id));
+  if(id==='screen-countdown') startCountdown();
+  else clearTimeout(countdownTick);
+  if(id!=='screen-beback') clearTimeout(bebackTick);
+}
+
+function switchScreen(id){
+  if(id==='screen-beback'){
+    document.querySelectorAll('[data-screen]').forEach(el=>
+      el.classList.toggle('selected',el.dataset.screen===id));
+    closeMenu();
+    bbiPicker.classList.add('open');
+  } else {
+    doSwitch(id);
+    closeMenu();
+  }
+}
+
+// ── Mode ───────────────────────────────────────────────
+function applyMode(mode){
+  currentMode=mode;
+  localStorage.setItem('clockMode',mode);
+  document.body.classList.toggle('home-mode',mode==='home');
+  document.querySelectorAll('.mode-btn').forEach(b=>
+    b.classList.toggle('active',b.dataset.mode===mode));
+
+  if(mode==='work'){
+    stopCycle();
+    infoOverlay.classList.remove('visible');
+    manualOverride=false;
+    checkSchedule();
+    applyInfoMode(infoMode);
+  } else {
+    clearTimeout(countdownTick);
+    clearTimeout(bebackTick);
+    manualOverride=true;
+    doSwitch('screen-clock',true);
+    applyHomeDisplay(homeDisplay);
+  }
+}
+
+// ── BBI picker events ──────────────────────────────────
+document.querySelectorAll('.bbi-btn').forEach(btn=>{
+  btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    bbiPicker.classList.remove('open');
+    doSwitch('screen-beback');
+    startBeback(parseInt(btn.dataset.mins,10));
+  });
+});
+document.getElementById('bbi-cancel').addEventListener('click',e=>{
+  e.stopPropagation();
+  bbiPicker.classList.remove('open');
+  const activeId=document.querySelector('.screen.active')?.id;
+  document.querySelectorAll('[data-screen]').forEach(el=>
+    el.classList.toggle('selected',el.dataset.screen===activeId));
+});
+
+// ── Menu ───────────────────────────────────────────────
+function showBtn(){
+  menuBtn.classList.add('visible');
+  clearTimeout(hideTimer);
+  hideTimer=setTimeout(()=>menuBtn.classList.remove('visible'),2000);
+}
+
+function closeMenu(){
+  menuPanel.classList.remove('open');
+  clearTimeout(hideTimer);
+  hideTimer=setTimeout(()=>menuBtn.classList.remove('visible'),2000);
+}
+
+// ── Events ────────────────────────────────────────────
+document.addEventListener('touchstart',showBtn,{passive:true});
+document.addEventListener('mousedown',showBtn);
+
+menuBtn.addEventListener('click',e=>{
+  e.stopPropagation();
+  menuPanel.classList.toggle('open');
+  if(menuPanel.classList.contains('open')) clearTimeout(hideTimer);
+});
+
+document.querySelectorAll('[data-screen]').forEach(item=>{
+  item.addEventListener('click',e=>{ e.stopPropagation(); switchScreen(item.dataset.screen); });
+});
+
+document.querySelectorAll('[data-info]').forEach(item=>{
+  item.addEventListener('click',e=>{ e.stopPropagation(); applyInfoMode(item.dataset.info); closeMenu(); });
+});
+
+document.querySelectorAll('[data-home]').forEach(item=>{
+  item.addEventListener('click',e=>{ e.stopPropagation(); applyHomeDisplay(item.dataset.home); closeMenu(); });
+});
+
+document.querySelectorAll('.mode-btn').forEach(btn=>{
+  btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    if(btn.dataset.mode!==currentMode){ applyMode(btn.dataset.mode); closeMenu(); }
+  });
+});
+
+document.addEventListener('click',e=>{
+  if(!menuPanel.contains(e.target)&&e.target!==menuBtn)
+    if(menuPanel.classList.contains('open')) closeMenu();
+});
+
+document.getElementById('pick-work').addEventListener('click',()=>{
+  modePicker.classList.add('hidden');
+  applyMode('work');
+  updateClock();
+});
+document.getElementById('pick-home').addEventListener('click',()=>{
+  modePicker.classList.add('hidden');
+  applyMode('home');
+  updateClock();
+});
+
+// ── Startup ────────────────────────────────────────────
+if(!firstRun){
+  modePicker.classList.add('hidden');
+  applyMode(currentMode);
+}
+updateClock();
+window.addEventListener('resize',()=>{ clearTimeout(ticker); updateClock(); layoutInfoBar(); });
+window.addEventListener('orientationchange',()=>{ clearTimeout(ticker); updateClock(); });
+
+const _n=new Date();
+setTimeout(function tick(){
+  checkSchedule();
+  setInterval(checkSchedule,60*1000);
+},(60-_n.getSeconds())*1000-_n.getMilliseconds());
+
+// == STYLE PANEL ================================================
+const styleBtn         = document.getElementById('style-btn');
+const stylePanel       = document.getElementById('style-panel');
+const holidayBanner    = document.getElementById('holiday-banner');
+const holidayToggleBtn = document.getElementById('holiday-toggle');
+const holidayStatusEl  = document.getElementById('holiday-status');
+
+let stylePanelOpen = false;
+let holidayEnabled = localStorage.getItem('holidayEnabled') === 'true';
+let currentPalette = localStorage.getItem('palette') || 'auto';
+let currentFont    = localStorage.getItem('clockFont') || 'arial-rounded';
+
+const FONTS = {
+  'arial-rounded': '"Arial Rounded MT Bold","Helvetica Rounded",Arial,sans-serif',
+  'helvetica':     'Helvetica,Arial,sans-serif',
+  'georgia':       'Georgia,"Times New Roman",serif',
+  'courier':       '"Courier New",Courier,monospace',
+  'impact':        'Impact,"Arial Narrow",Arial,sans-serif'
+};
+
+const PALETTES = {
+  spring:{ hour:'#E85D8A', min:'#74B564', sec:'#2a4a20', bg:'#0a0f08' },
+  summer:{ hour:'#FFD166', min:'#06BCC1', sec:'#004d4f', bg:'#020d0d' },
+  fall:  { hour:'#E8754A', min:'#C9A84C', sec:'#4a2800', bg:'#0e0800' },
+  winter:{ hour:'#A8D8F0', min:'#6699CC', sec:'#1a3a55', bg:'#020810' },
+  mono:  { hour:'#FFFFFF', min:'#777777', sec:'#333333', bg:'#000000' },
+  amber: { hour:'#FFAE00', min:'#C06000', sec:'#3a1800', bg:'#0a0500' },
+  green: { hour:'#39FF14', min:'#00AA00', sec:'#003300', bg:'#000a00' }
+};
+
+function getSeason(){
+  const m=new Date().getMonth();
+  if(m>=2&&m<=4) return 'spring';
+  if(m>=5&&m<=7) return 'summer';
+  if(m>=8&&m<=10) return 'fall';
+  return 'winter';
+}
+
+function applyPalette(name){
+  currentPalette=name;
+  localStorage.setItem('palette',name);
+  const key=(name==='auto')?getSeason():name;
+  const p=PALETTES[key]||PALETTES.mono;
+  const r=document.documentElement;
+  r.style.setProperty('--hour-color',p.hour);
+  r.style.setProperty('--min-color', p.min);
+  r.style.setProperty('--sec-color', p.sec);
+  r.style.setProperty('--bg',        p.bg);
+  document.querySelectorAll('.palette-swatch').forEach(el=>
+    el.classList.toggle('selected',el.dataset.palette===name));
+  window.dispatchEvent(new Event('paletteChanged'));
+}
+
+function applyFont(name){
+  currentFont=name;
+  localStorage.setItem('clockFont',name);
+  document.body.style.fontFamily=FONTS[name]||FONTS['arial-rounded'];
+  document.querySelectorAll('.font-item').forEach(el=>
+    el.classList.toggle('selected',el.dataset.font===name));
+}
+
+const HOLIDAYS=[
+  {month:0, day:1,  emoji:'🎆', name:'Happy New Year!'},
+  {month:1, day:14, emoji:'❤️', name:"Happy Valentine's Day!"},
+  {month:2, day:17, emoji:'☘️', name:"Happy St. Patrick's Day!"},
+  {month:3, day:1,  emoji:'🃏', name:'April Fools! 🤡'},
+  {month:3, day:22, emoji:'🌍', name:'Happy Earth Day!'},
+  {month:4, day:11, emoji:'🌷', name:"Happy Mother's Day!"},
+  {month:5, day:21, emoji:'☀️', name:'Happy Summer Solstice!'},
+  {month:6, day:1,  emoji:'🍁', name:'Happy Canada Day! 🇨🇦'},
+  {month:9, day:31, emoji:'🎃', name:'Happy Halloween!'},
+  {month:10,day:11, emoji:'🎖️', name:'Remembrance Day 🕊️'},
+  {month:11,day:21, emoji:'❄️', name:'Happy Winter Solstice!'},
+  {month:11,day:24, emoji:'🎄', name:'Merry Christmas Eve!'},
+  {month:11,day:25, emoji:'🎁', name:'Merry Christmas! Ho Ho Ho!'},
+  {month:11,day:31, emoji:'🥂', name:"Happy New Year's Eve!"}
+];
+
+function getHolidayToday(){
+  const n=new Date();
+  return HOLIDAYS.find(h=>h.month===n.getMonth()&&h.day===n.getDate())||null;
+}
+
+function updateHolidayBanner(){
+  if(!holidayEnabled){holidayBanner.classList.remove('visible');return;}
+  const h=getHolidayToday();
+  if(h){
+    holidayBanner.textContent=h.emoji+'  '+h.name+'  '+h.emoji;
+    holidayBanner.classList.add('visible');
+  } else {
+    holidayBanner.classList.remove('visible');
+  }
+}
+
+function applyHoliday(enabled){
+  holidayEnabled=enabled;
+  localStorage.setItem('holidayEnabled',String(enabled));
+  holidayToggleBtn.classList.toggle('selected',enabled);
+  holidayToggleBtn.querySelector('.menu-dot').style.background=enabled?'#fff':'';
+  holidayStatusEl.textContent=enabled?'ON':'OFF';
+  holidayStatusEl.style.color=enabled?'rgba(255,255,255,0.7)':'rgba(255,255,255,0.3)';
+  updateHolidayBanner();
+}
+
+function closeStylePanel(){
+  stylePanel.classList.remove('open');
+  stylePanelOpen=false;
+}
+
+styleBtn.addEventListener('click',e=>{
+  e.stopPropagation();
+  stylePanelOpen=!stylePanelOpen;
+  stylePanel.classList.toggle('open',stylePanelOpen);
+  if(stylePanelOpen) clearTimeout(hideTimer);
+});
+
+document.querySelectorAll('.font-item').forEach(el=>{
+  el.addEventListener('click',e=>{e.stopPropagation();applyFont(el.dataset.font);});
+});
+
+document.querySelectorAll('.palette-swatch').forEach(el=>{
+  el.addEventListener('click',e=>{e.stopPropagation();applyPalette(el.dataset.palette);});
+});
+
+holidayToggleBtn.addEventListener('click',e=>{
+  e.stopPropagation();
+  applyHoliday(!holidayEnabled);
+});
+
+document.addEventListener('click',e=>{
+  if(stylePanelOpen&&!stylePanel.contains(e.target)&&e.target!==styleBtn)
+    closeStylePanel();
+});
+
+// Style btn visibility mirrors right menu btn
+document.addEventListener('touchstart',()=>styleBtn.classList.add('visible'),{passive:true});
+document.addEventListener('mousedown', ()=>styleBtn.classList.add('visible'));
+new MutationObserver(()=>{
+  if(menuBtn.classList.contains('visible')) styleBtn.classList.add('visible');
+  else if(!stylePanelOpen) styleBtn.classList.remove('visible');
+}).observe(menuBtn,{attributes:true,attributeFilter:['class']});
+
+// ── Weather style ─────────────────────────────────────
+function applyWxStyle(name){
+  localStorage.setItem('wxStyle', name);
+  document.querySelectorAll('[data-wxstyle]').forEach(el=>
+    el.classList.toggle('selected', el.dataset.wxstyle===name));
+  renderWeather();
+}
+
+document.querySelectorAll('[data-wxstyle]').forEach(el=>{
+  el.addEventListener('click', e=>{
+    e.stopPropagation();
+    applyWxStyle(el.dataset.wxstyle);
+  });
+});
+
+// Initialise
+applyFont(currentFont);
+applyPalette(currentPalette);
+applyHoliday(holidayEnabled);
+applyWxStyle(localStorage.getItem('wxStyle')||'words-emoji');
+
+
+// ── Quotes engine ─────────────────────────────────────
+const QUOTES = [
+  // Kindness & friendship
+  "Kindness starts with one small act.",
+  "A good friend listens with their whole heart.",
+  "Including others is always a great idea.",
+  "One kind word can change someone's whole day.",
+  "Friends lift each other up.",
+  "Sharing is one of the best things you can do.",
+  "Look for ways to help someone today.",
+  "A smile is a gift anyone can give.",
+  "Being kind is always worth it.",
+  "Good friends are good listeners.",
+  // Learning & growth
+  "Making mistakes is how we learn.",
+  "Every new skill started with day one.",
+  "Hard things get easier with practice.",
+  "Asking questions is a sign of smart thinking.",
+  "Reading opens doors to new worlds.",
+  "Your brain grows every time you try something new.",
+  "Getting better takes time and that is perfectly fine.",
+  "One small step forward is still progress.",
+  "Trying hard matters more than being perfect.",
+  "Learning something new is always worth the effort.",
+  // Courage & confidence
+  "You can do hard things.",
+  "It is okay to feel nervous and try anyway.",
+  "Being yourself is something to be proud of.",
+  "Speak up for what you know is right.",
+  "Everyone starts as a beginner.",
+  "Courage means trying even when it feels tricky.",
+  "You have something special to offer the world.",
+  "It is okay to ask for help.",
+  "Your ideas are worth sharing.",
+  "Keep going — you are doing better than you think.",
+  // Community & respect
+  "We do better when we work together.",
+  "Everyone deserves to feel welcome here.",
+  "Respect looks like listening when others speak.",
+  "Our differences make our class stronger.",
+  "Take care of this place and the people in it.",
+  "Leave things a little better than you found them.",
+  "Every person in this building matters.",
+  "Looking out for each other is what teams do.",
+  "Great communities are built one kind act at a time.",
+  "You belong here.",
+];
+
+const quoteOverlay  = document.getElementById('quote-overlay');
+const quoteTextEl   = document.getElementById('quote-text');
+const quoteBtnWork  = document.getElementById('quote-toggle-work');
+const quoteBtnHome  = document.getElementById('quote-toggle-home');
+const quoteStatusW  = document.getElementById('quote-status-work');
+const quoteStatusH  = document.getElementById('quote-status-home');
+
+let quotesEnabled  = localStorage.getItem('quotesEnabled') === 'true';
+let quoteTimer     = null;
+let quoteFadeTimer = null;
+let lastQuoteIdx   = -1;
+
+function layoutQuote(){
+  if(!quoteTextEl.textContent.trim()) return;
+  const padH = parseInt(getComputedStyle(document.documentElement)
+    .getPropertyValue('--pad'))||32;
+  const W  = window.innerWidth - padH * 2 - 16;
+  const H  = window.innerHeight * 0.60; // usable height inside the 65% zone
+
+  let bestSize  = 12;
+  let bestLines = 1;
+
+  // Try 1 line then 2 — keep whichever produces the larger font
+  for(let lines = 1; lines <= 2; lines++){
+    quoteTextEl.style.whiteSpace  = lines === 1 ? 'nowrap' : 'normal';
+    quoteTextEl.style.maxWidth    = lines === 1 ? 'none'   : W + 'px';
+    quoteTextEl.style.fontSize    = '300px';
+
+    // Allow a full render tick before measuring
+    const scaleW = (W  / quoteTextEl.scrollWidth)  * 0.98;
+    const scaleH = (H  / quoteTextEl.offsetHeight) * 0.96;
+    const sz     = 300 * Math.min(scaleW, scaleH);
+
+    if(sz > bestSize){ bestSize = sz; bestLines = lines; }
+  }
+
+  quoteTextEl.style.whiteSpace = bestLines === 1 ? 'nowrap' : 'normal';
+  quoteTextEl.style.maxWidth   = bestLines === 1 ? 'none'   : W + 'px';
+  quoteTextEl.style.fontSize   = bestSize + 'px';
+}
+
+function showNextQuote(){
+  // Fade out
+  quoteTextEl.classList.remove('show');
+  quoteFadeTimer = setTimeout(()=>{
+    // Pick a different quote
+    let idx;
+    do { idx = Math.floor(Math.random() * QUOTES.length); }
+    while(idx === lastQuoteIdx && QUOTES.length > 1);
+    lastQuoteIdx = idx;
+    quoteTextEl.textContent = QUOTES[idx];
+    layoutQuote();
+    // Fade in
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{ quoteTextEl.classList.add('show'); });
+    });
+    // Schedule next rotation (12 seconds visible)
+    quoteTimer = setTimeout(showNextQuote, 14000);
+  }, 1300); // wait for fade-out transition
+}
+
+function startQuotes(){
+  clearTimeout(quoteTimer);
+  clearTimeout(quoteFadeTimer);
+  quoteOverlay.classList.add('visible');
+  document.getElementById('screen-clock').classList.add('quotes-on');
+  showNextQuote();
+}
+
+function stopQuotes(){
+  clearTimeout(quoteTimer);
+  clearTimeout(quoteFadeTimer);
+  quoteTextEl.classList.remove('show');
+  quoteOverlay.classList.remove('visible');
+  document.getElementById('screen-clock').classList.remove('quotes-on');
+}
+
+function applyQuotes(enabled){
+  quotesEnabled = enabled;
+  localStorage.setItem('quotesEnabled', String(enabled));
+  [quoteBtnWork, quoteBtnHome].forEach(btn=>{
+    if(!btn) return;
+    btn.classList.toggle('selected', enabled);
+    btn.querySelector('.menu-dot').style.background = enabled ? '#fff' : '';
+  });
+  [quoteStatusW, quoteStatusH].forEach(el=>{
+    if(!el) return;
+    el.textContent = enabled ? 'ON' : 'OFF';
+    el.style.color = enabled ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)';
+  });
+  if(enabled) startQuotes(); else stopQuotes();
+}
+
+[quoteBtnWork, quoteBtnHome].forEach(btn=>{
+  if(!btn) return;
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    applyQuotes(!quotesEnabled);
+    closeMenu();
+  });
+});
+
+// Re-layout quote on resize
+window.addEventListener('resize', ()=>{ if(quotesEnabled) layoutQuote(); });
+
+// Initialise quotes
+applyQuotes(quotesEnabled);
+
+
+// ══ SWIRLING GRADIENT BACKGROUND ═════════════════════
+(function(){
+  const canvas = document.getElementById('bg-canvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H, blobs;
+
+  function hexToRgb(hex){
+    const h = hex.replace('#','');
+    const full = h.length===3 ? h.split('').map(c=>c+c).join('') : h;
+    const n = parseInt(full, 16);
+    return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+  }
+
+  function lerp(a,b,t){ return a+(b-a)*t; }
+
+  function getPaletteColours(){
+    const st   = getComputedStyle(document.documentElement);
+    const bg   = (st.getPropertyValue('--bg')        ||'#000000').trim();
+    const hour = (st.getPropertyValue('--hour-color') ||'#ffffff').trim();
+    const min  = (st.getPropertyValue('--min-color')  ||'#555555').trim();
+    return { bg:hexToRgb(bg), hour:hexToRgb(hour), min:hexToRgb(min) };
+  }
+
+  function makeBlobs(){
+    const c = getPaletteColours();
+    const tints = [
+      { r:lerp(c.bg.r,c.hour.r,0.22), g:lerp(c.bg.g,c.hour.g,0.22), b:lerp(c.bg.b,c.hour.b,0.22) },
+      { r:lerp(c.bg.r,c.min.r, 0.18), g:lerp(c.bg.g,c.min.g, 0.18), b:lerp(c.bg.b,c.min.b, 0.18) },
+      { r:lerp(c.bg.r,c.hour.r,0.14), g:lerp(c.bg.g,c.hour.g,0.14), b:lerp(c.bg.b,c.hour.b,0.14) },
+      { r:lerp(c.bg.r,c.min.r, 0.10), g:lerp(c.bg.g,c.min.g, 0.10), b:lerp(c.bg.b,c.min.b, 0.10) },
+    ];
+    const base = Math.min(W,H);
+    return tints.map((col,i) => ({
+      x:  W*(0.15 + i*0.22),
+      y:  H*(0.2  + (i%2)*0.55),
+      r:  base*(0.5 + i*0.07),
+      vx: (Math.random()-0.5)*0.22,
+      vy: (Math.random()-0.5)*0.16,
+      phase:  Math.random()*Math.PI*2,
+      speed:  0.00035 + Math.random()*0.00025,
+      col,
+    }));
+  }
+
+  function resize(){
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    blobs = makeBlobs();
+  }
+
+  function draw(){
+    const st    = getComputedStyle(document.documentElement);
+    const bgHex = (st.getPropertyValue('--bg')||'#000000').trim();
+    const bg    = hexToRgb(bgHex);
+    ctx.fillStyle = `rgb(${bg.r},${bg.g},${bg.b})`;
+    ctx.fillRect(0,0,W,H);
+
+    blobs.forEach(b=>{
+      b.phase += b.speed;
+      b.x += b.vx + Math.sin(b.phase*1.4)*0.35;
+      b.y += b.vy + Math.cos(b.phase*0.85)*0.28;
+      if(b.x < -b.r*0.4){ b.vx =  Math.abs(b.vx); }
+      if(b.x >  W+b.r*0.4){ b.vx = -Math.abs(b.vx); }
+      if(b.y < -b.r*0.4){ b.vy =  Math.abs(b.vy); }
+      if(b.y >  H+b.r*0.4){ b.vy = -Math.abs(b.vy); }
+
+      const gr = ctx.createRadialGradient(b.x,b.y,0, b.x,b.y,b.r);
+      const {r,g,b:bv} = b.col;
+      gr.addColorStop(0,   `rgba(${r},${g},${bv},0.6)`);
+      gr.addColorStop(0.45,`rgba(${r},${g},${bv},0.2)`);
+      gr.addColorStop(1,   `rgba(${r},${g},${bv},0)`);
+      ctx.fillStyle = gr;
+      ctx.beginPath();
+      ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+      ctx.fill();
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('paletteChanged', ()=>{ blobs = makeBlobs(); });
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(draw);
+// ── Wi-Fi Speed ───────────────────────────────────────────
+const wifiStrip      = document.getElementById('wifi-strip');
+const wifiSpeedEl    = document.getElementById('wifi-speed');
+const wifiDescEl     = document.getElementById('wifi-desc');
+const wifiBtnWork    = document.getElementById('wifi-toggle-work');
+const wifiBtnHome    = document.getElementById('wifi-toggle-home');
+const wifiStatusWork = document.getElementById('wifi-status-work');
+const wifiStatusHome = document.getElementById('wifi-status-home');
+const clockEl        = document.getElementById('screen-clock');
+
+let wifiEnabled  = localStorage.getItem('wifiEnabled') === 'true';
+let wifiInterval = null;
+
+function wifiDescription(mbps){
+  if(mbps === null) return 'SIGNAL LOST 📵';
+  if(mbps <  0.5)  return 'SLOWER THAN A SLEEPY SNAIL 🐌';
+  if(mbps <  2)    return 'DIAL-UP IS CALLING FROM 1998 📞';
+  if(mbps <  5)    return 'BUFFERING... PLEASE HOLD ⏳';
+  if(mbps < 10)    return 'JUST ENOUGH FOR ONE TAB 😅';
+  if(mbps < 25)    return 'GETTING THERE, SLOWLY 🚶';
+  if(mbps < 50)    return "DECENT! DON'T PUSH IT 👌";
+  if(mbps < 100)   return 'PRETTY ZIPPY! 🏃';
+  if(mbps < 200)   return "NOW WE'RE COOKING 🔥";
+  if(mbps < 500)   return 'LIGHTNING IN A BOTTLE ⚡';
+                   return 'FASTER THAN THOUGHT 🤯';
+}
+
+function layoutWifi(){
+  if(!wifiEnabled) return;
+  const padH = parseInt(getComputedStyle(document.documentElement)
+    .getPropertyValue('--pad'))||32;
+  const W  = window.innerWidth - padH*2;
+  const H  = window.innerHeight * 0.10;
+
+  wifiSpeedEl.style.fontSize = '100px';
+  const ssH = (H*0.52) / wifiSpeedEl.offsetHeight;
+  const ssW = W        / wifiSpeedEl.scrollWidth  * 0.97;
+  wifiSpeedEl.style.fontSize = (100 * Math.min(ssH, ssW)) + 'px';
+
+  if(wifiDescEl.textContent.trim()){
+    wifiDescEl.style.fontSize = '100px';
+    const dsH = (H*0.36) / wifiDescEl.offsetHeight;
+    const dsW = W        / wifiDescEl.scrollWidth  * 0.97;
+    wifiDescEl.style.fontSize = (100 * Math.min(dsH, dsW)) + 'px';
+  }
+}
+
+async function measureSpeed(){
+  const url = 'https://speed.cloudflare.com/__down?bytes=750000&_=' + Date.now();
+  const t0  = performance.now();
+  try{
+    const res  = await fetch(url, {cache:'no-store'});
+    const buf  = await res.arrayBuffer();
+    const secs = (performance.now() - t0) / 1000;
+    const mbps = (buf.byteLength * 8) / secs / 1_000_000;
+    const disp = mbps >= 100 ? Math.round(mbps)+' Mbps' : mbps.toFixed(1)+' Mbps';
+    wifiSpeedEl.textContent = disp;
+    wifiDescEl.textContent  = wifiDescription(mbps);
+  } catch(e){
+    wifiSpeedEl.textContent = 'NO SIGNAL';
+    wifiDescEl.textContent  = wifiDescription(null);
+  }
+  setTimeout(layoutWifi, 50);
+}
+
+function startWifi(){
+  wifiStrip.classList.add('visible');
+  clockEl.classList.add('wifi-on');
+  wifiSpeedEl.textContent = 'TESTING...';
+  wifiDescEl.textContent  = '';
+  setTimeout(layoutWifi, 50);
+  measureSpeed();
+  wifiInterval = setInterval(measureSpeed, 60000);
+}
+
+function stopWifi(){
+  clearInterval(wifiInterval);
+  wifiStrip.classList.remove('visible');
+  clockEl.classList.remove('wifi-on');
+}
+
+function applyWifi(enabled){
+  wifiEnabled = enabled;
+  localStorage.setItem('wifiEnabled', String(enabled));
+  [wifiBtnWork, wifiBtnHome].forEach(btn=>{
+    if(!btn) return;
+    btn.classList.toggle('selected', enabled);
+    btn.querySelector('.menu-dot').style.background = enabled ? '#fff' : '';
+  });
+  [wifiStatusWork, wifiStatusHome].forEach(el=>{
+    if(!el) return;
+    el.textContent = enabled ? 'ON' : 'OFF';
+    el.style.color = enabled ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)';
+  });
+  if(enabled) startWifi(); else stopWifi();
+}
+
+[wifiBtnWork, wifiBtnHome].forEach(btn=>{
+  if(!btn) return;
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    applyWifi(!wifiEnabled);
+    closeMenu();
+  });
+});
+
+window.addEventListener('resize', ()=>{ if(wifiEnabled) layoutWifi(); });
+applyWifi(wifiEnabled);
+
+
+})();
+
+
+})();
 </script>
 </body>
 </html>
