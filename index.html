@@ -1363,8 +1363,11 @@ applyWxStyle(localStorage.getItem('wxStyle')||'words-emoji');
 
 
 // ── Quotes engine ─────────────────────────────────────
-const QUOTES = [
-  // Kindness & friendship
+// Each card is either a string (quote/joke) or {q, a} for math/riddle.
+// Jokes use {q, a} too so the punchline gets a reveal pause.
+const CARDS = [
+
+  // ── Inspirational quotes ────────────────────────────────────────
   "Kindness starts with one small act.",
   "A good friend listens with their whole heart.",
   "Including others is always a great idea.",
@@ -1375,7 +1378,6 @@ const QUOTES = [
   "A smile is a gift anyone can give.",
   "Being kind is always worth it.",
   "Good friends are good listeners.",
-  // Learning & growth
   "Making mistakes is how we learn.",
   "Every new skill started with day one.",
   "Hard things get easier with practice.",
@@ -1385,29 +1387,78 @@ const QUOTES = [
   "Getting better takes time and that is perfectly fine.",
   "One small step forward is still progress.",
   "Trying hard matters more than being perfect.",
-  "Learning something new is always worth the effort.",
-  // Courage & confidence
   "You can do hard things.",
   "It is okay to feel nervous and try anyway.",
   "Being yourself is something to be proud of.",
   "Speak up for what you know is right.",
   "Everyone starts as a beginner.",
-  "Courage means trying even when it feels tricky.",
   "You have something special to offer the world.",
   "It is okay to ask for help.",
   "Your ideas are worth sharing.",
   "Keep going — you are doing better than you think.",
-  // Community & respect
   "We do better when we work together.",
   "Everyone deserves to feel welcome here.",
-  "Respect looks like listening when others speak.",
   "Our differences make our class stronger.",
-  "Take care of this place and the people in it.",
   "Leave things a little better than you found them.",
   "Every person in this building matters.",
-  "Looking out for each other is what teams do.",
-  "Great communities are built one kind act at a time.",
   "You belong here.",
+
+  // ── Jokes ──────────────────────────────────────────────────────
+  {q:"Why did the scarecrow win an award?",            a:"🌟 Because he was outstanding in his field!"},
+  {q:"What do you call a sleeping dinosaur?",          a:"🦖 A dino-snore!"},
+  {q:"Why can't Elsa have a balloon?",                a:"❄️ She will let it go!"},
+  {q:"What do you call cheese that isn't yours?",     a:"🧀 Nacho cheese!"},
+  {q:"Why did the bicycle fall over?",                 a:"🚲 Because it was two-tired!"},
+  {q:"What do you call a fish without eyes?",          a:"🐟 A fsh!"},
+  {q:"Why did the maths book look so worried?",        a:"📚 It had too many problems!"},
+  {q:"What do elves learn at school?",                 a:"🧝 The elf-abet!"},
+  {q:"Why did the student eat his homework?",          a:"📝 The teacher told him it was a piece of cake!"},
+  {q:"What do you call a bear with no teeth?",         a:"🐻 A gummy bear!"},
+  {q:"Why did the teacher wear sunglasses?",           a:"😎 Because the students were so bright!"},
+  {q:"What do you call a sneezing cat?",               a:"🐱 A-cat-choo!"},
+  {q:"Why do cows wear bells?",                        a:"🐮 Because their horns don't work!"},
+  {q:"What do you call a lazy kangaroo?",              a:"🦘 A pouch potato!"},
+  {q:"Why did the cookie go to the doctor?",           a:"🍪 It was feeling crummy!"},
+  {q:"What do you get when you cross a snowman and a shark?", a:"🧊 Frostbite!"},
+  {q:"Why did the golfer bring extra socks?",          a:"⛳ In case he got a hole in one!"},
+  {q:"What has hands but cannot clap?",                a:"⏰ A clock!"},
+  {q:"Why don't scientists trust atoms?",             a:"⚛️ Because they make up everything!"},
+  {q:"What do you call a fake noodle?",                a:"🍜 An impasta!"},
+
+  // ── Maths questions ────────────────────────────────────────────
+  // Addition & subtraction
+  {q:"🧮  8 + 7 = ?",            a:"✅  8 + 7 = 15"},
+  {q:"🧮  25 + 17 = ?",          a:"✅  25 + 17 = 42"},
+  {q:"🧮  100 − 38 = ?",    a:"✅  100 − 38 = 62"},
+  {q:"🧮  56 + 29 = ?",          a:"✅  56 + 29 = 85"},
+  {q:"🧮  200 − 75 = ?",    a:"✅  200 − 75 = 125"},
+  // Multiplication
+  {q:"✖️  6 × 7 = ?",      a:"✅  6 × 7 = 42"},
+  {q:"✖️  8 × 9 = ?",      a:"✅  8 × 9 = 72"},
+  {q:"✖️  12 × 4 = ?",     a:"✅  12 × 4 = 48"},
+  {q:"✖️  7 × 7 = ?",      a:"✅  7 × 7 = 49"},
+  {q:"✖️  11 × 6 = ?",     a:"✅  11 × 6 = 66"},
+  // Division
+  {q:"÷  36 ÷ 4 = ?",         a:"✅  36 ÷ 4 = 9"},
+  {q:"÷  63 ÷ 9 = ?",         a:"✅  63 ÷ 9 = 7"},
+  {q:"÷  48 ÷ 6 = ?",         a:"✅  48 ÷ 6 = 8"},
+  {q:"÷  72 ÷ 8 = ?",         a:"✅  72 ÷ 8 = 9"},
+  // Fractions & halves
+  {q:"🥧  Half of 64 = ?",      a:"✅  Half of 64 = 32"},
+  {q:"🥧  Half of 130 = ?",     a:"✅  Half of 130 = 65"},
+  {q:"🥧  Double 37 = ?",       a:"✅  Double 37 = 74"},
+  {q:"🥧  Double 48 = ?",       a:"✅  Double 48 = 96"},
+  // Clever / pattern
+  {q:"💡  How many seconds in a minute?",  a:"✅  60 seconds!"},
+  {q:"💡  How many minutes in an hour?",   a:"✅  60 minutes!"},
+  {q:"💡  How many hours in a day?",       a:"✅  24 hours!"},
+  {q:"💡  How many days in a year?",       a:"✅  365 days (366 in a leap year)!"},
+  {q:"💡  How many sides does a hexagon have?",   a:"✅  6 sides!"},
+  {q:"💡  How many sides does an octagon have?",  a:"✅  8 sides!"},
+  {q:"💡  What is 10% of 200?",            a:"✅  10% of 200 = 20"},
+  {q:"💡  What is 25% of 80?",             a:"✅  25% of 80 = 20"},
+  {q:"💡  What is the next prime after 7?", a:"✅  11!"},
+  {q:"💡  Squares: 4, 9, 16, 25, … what's next?", a:"✅  36 (6 × 6)!"},
 ];
 
 const quoteOverlay  = document.getElementById('quote-overlay');
@@ -1451,24 +1502,40 @@ function layoutQuote(){
   quoteTextEl.style.fontSize   = bestSize + 'px';
 }
 
-function showNextQuote(){
-  // Fade out
+function fadeIn(text, then){
+  quoteTextEl.textContent = text;
+  layoutQuote();
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{ quoteTextEl.classList.add('show'); });
+  });
+  if(then) quoteTimer = setTimeout(then, 14000);
+}
+
+function fadeOut(then){
   quoteTextEl.classList.remove('show');
-  quoteFadeTimer = setTimeout(()=>{
-    // Pick a different quote
+  quoteFadeTimer = setTimeout(then, 1300);
+}
+
+function showNextQuote(){
+  fadeOut(()=>{
     let idx;
-    do { idx = Math.floor(Math.random() * QUOTES.length); }
-    while(idx === lastQuoteIdx && QUOTES.length > 1);
+    do { idx = Math.floor(Math.random() * CARDS.length); }
+    while(idx === lastQuoteIdx && CARDS.length > 1);
     lastQuoteIdx = idx;
-    quoteTextEl.textContent = QUOTES[idx];
-    layoutQuote();
-    // Fade in
-    requestAnimationFrame(()=>{
-      requestAnimationFrame(()=>{ quoteTextEl.classList.add('show'); });
-    });
-    // Schedule next rotation (12 seconds visible)
-    quoteTimer = setTimeout(showNextQuote, 14000);
-  }, 1300); // wait for fade-out transition
+    const card = CARDS[idx];
+
+    if(typeof card === 'string'){
+      // Plain quote — show and move on after 14 s
+      fadeIn(card, showNextQuote);
+    } else {
+      // Joke or maths: show question for 8 s, then answer for 8 s
+      fadeIn(card.q, ()=>{
+        fadeOut(()=>{
+          fadeIn(card.a, showNextQuote);
+        });
+      });
+    }
+  });
 }
 
 function startQuotes(){
@@ -1616,63 +1683,80 @@ const clockEl        = document.getElementById('screen-clock');
 let wifiEnabled  = localStorage.getItem('wifiEnabled') === 'true';
 let wifiInterval = null;
 
-function wifiDescription(mbps){
-  if(mbps === null) return 'SIGNAL LOST 📵';
-  if(mbps <  0.5)  return 'SLOWER THAN A SLEEPY SNAIL 🐌';
-  if(mbps <  2)    return 'DIAL-UP IS CALLING FROM 1998 📞';
-  if(mbps <  5)    return 'BUFFERING... PLEASE HOLD ⏳';
-  if(mbps < 10)    return 'JUST ENOUGH FOR ONE TAB 😅';
-  if(mbps < 25)    return 'GETTING THERE, SLOWLY 🚶';
-  if(mbps < 50)    return "DECENT! DON'T PUSH IT 👌";
-  if(mbps < 100)   return 'PRETTY ZIPPY! 🏃';
-  if(mbps < 200)   return "NOW WE'RE COOKING 🔥";
-  if(mbps < 500)   return 'LIGHTNING IN A BOTTLE ⚡';
-                   return 'FASTER THAN THOUGHT 🤯';
+// Hide desc line — only Mbps number shown
+wifiDescEl.style.display = 'none';
+
+// State for the animated counter
+let wifiRealMbps    = null;   // last measured value
+let wifiDisplayMbps = null;   // currently shown (animated) value
+let wifiAnimTimer   = null;   // interval for between-test animation
+
+function fmtMbps(v){
+  if(v === null) return 'NO SIGNAL';
+  return v >= 100 ? Math.round(v) + ' Mbps' : v.toFixed(1) + ' Mbps';
 }
 
 function layoutWifi(){
   if(!wifiEnabled) return;
   const padH = parseInt(getComputedStyle(document.documentElement)
     .getPropertyValue('--pad'))||32;
-  const W  = window.innerWidth - padH*2;
-  const H  = window.innerHeight * 0.10;
-
+  const W = window.innerWidth - padH*2;
+  const H = window.innerHeight * 0.10;
   wifiSpeedEl.style.fontSize = '100px';
-  const ssH = (H*0.52) / wifiSpeedEl.offsetHeight;
-  const ssW = W        / wifiSpeedEl.scrollWidth  * 0.97;
+  const ssH = (H * 0.80) / wifiSpeedEl.offsetHeight;
+  const ssW = W           / wifiSpeedEl.scrollWidth * 0.97;
   wifiSpeedEl.style.fontSize = (100 * Math.min(ssH, ssW)) + 'px';
+}
 
-  if(wifiDescEl.textContent.trim()){
-    wifiDescEl.style.fontSize = '100px';
-    const dsH = (H*0.36) / wifiDescEl.offsetHeight;
-    const dsW = W        / wifiDescEl.scrollWidth  * 0.97;
-    wifiDescEl.style.fontSize = (100 * Math.min(dsH, dsW)) + 'px';
-  }
+// Animated random walk: mostly up, occasionally dips
+// Runs every 1.5 s between real tests
+function startSimulation(){
+  clearInterval(wifiAnimTimer);
+  if(wifiRealMbps === null) return;
+  wifiAnimTimer = setInterval(()=>{
+    if(wifiDisplayMbps === null) return;
+    // 70% chance of nudging up, 30% down
+    const up   = Math.random() < 0.70;
+    // Step size: 0.3–4% of real value, larger steps feel more natural
+    const step = wifiRealMbps * (0.003 + Math.random() * 0.037);
+    wifiDisplayMbps = up
+      ? wifiDisplayMbps + step
+      : wifiDisplayMbps - step * 0.6;   // dips are smaller than rises
+    // Keep within ±25% of the real measured value
+    const lo = wifiRealMbps * 0.75;
+    const hi = wifiRealMbps * 1.25;
+    wifiDisplayMbps = Math.max(lo, Math.min(hi, wifiDisplayMbps));
+    wifiSpeedEl.textContent = fmtMbps(wifiDisplayMbps);
+    layoutWifi();
+  }, 1500);
 }
 
 async function measureSpeed(){
+  clearInterval(wifiAnimTimer);
+  wifiSpeedEl.textContent = 'TESTING...';
+  layoutWifi();
   const url = 'https://speed.cloudflare.com/__down?bytes=750000&_=' + Date.now();
   const t0  = performance.now();
   try{
     const res  = await fetch(url, {cache:'no-store'});
     const buf  = await res.arrayBuffer();
     const secs = (performance.now() - t0) / 1000;
-    const mbps = (buf.byteLength * 8) / secs / 1_000_000;
-    const disp = mbps >= 100 ? Math.round(mbps)+' Mbps' : mbps.toFixed(1)+' Mbps';
-    wifiSpeedEl.textContent = disp;
-    wifiDescEl.textContent  = wifiDescription(mbps);
+    wifiRealMbps    = (buf.byteLength * 8) / secs / 1_000_000;
+    wifiDisplayMbps = wifiRealMbps;
+    wifiSpeedEl.textContent = fmtMbps(wifiDisplayMbps);
   } catch(e){
+    wifiRealMbps    = null;
+    wifiDisplayMbps = null;
     wifiSpeedEl.textContent = 'NO SIGNAL';
-    wifiDescEl.textContent  = wifiDescription(null);
   }
   setTimeout(layoutWifi, 50);
+  startSimulation();
 }
 
 function startWifi(){
   wifiStrip.classList.add('visible');
   clockEl.classList.add('wifi-on');
   wifiSpeedEl.textContent = 'TESTING...';
-  wifiDescEl.textContent  = '';
   setTimeout(layoutWifi, 50);
   measureSpeed();
   wifiInterval = setInterval(measureSpeed, 60000);
@@ -1680,8 +1764,11 @@ function startWifi(){
 
 function stopWifi(){
   clearInterval(wifiInterval);
+  clearInterval(wifiAnimTimer);
   wifiStrip.classList.remove('visible');
   clockEl.classList.remove('wifi-on');
+  wifiRealMbps = null;
+  wifiDisplayMbps = null;
 }
 
 function applyWifi(enabled){
