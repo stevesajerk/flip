@@ -98,6 +98,48 @@ body{
 }
 #screen-clock.wifi-on.quotes-on .home-panel{ top:65%; }
 
+
+/* ── CSS blob background ───────────────────────────────────────── */
+#bg-blobs{
+  position:fixed;inset:0;z-index:0;
+  pointer-events:none;overflow:hidden;
+  background:var(--bg);
+  transition:background 1.2s ease;
+}
+.blob{
+  position:absolute;
+  border-radius:50%;
+  filter:blur(80px);
+  will-change:transform;
+}
+.blob:nth-child(1){ width:70vw;height:70vw;top:-10vh;left:-10vw; animation:drift1 28s ease-in-out infinite alternate; }
+.blob:nth-child(2){ width:55vw;height:55vw;top:40vh; left:50vw;  animation:drift2 34s ease-in-out infinite alternate; }
+.blob:nth-child(3){ width:60vw;height:60vw;top:60vh; left:-5vw;  animation:drift3 22s ease-in-out infinite alternate; }
+.blob:nth-child(4){ width:45vw;height:45vw;top:10vh; left:55vw;  animation:drift4 40s ease-in-out infinite alternate; }
+
+@keyframes drift1{
+  0%   { transform:translate(  0vw,  0vh) scale(1.00); }
+  33%  { transform:translate( 28vw, 18vh) scale(1.10); }
+  66%  { transform:translate(  8vw, 38vh) scale(0.92); }
+  100% { transform:translate( 38vw, 22vh) scale(1.05); }
+}
+@keyframes drift2{
+  0%   { transform:translate(  0vw,  0vh) scale(1.00); }
+  33%  { transform:translate(-28vw,-22vh) scale(0.94); }
+  66%  { transform:translate( 12vw,-40vh) scale(1.10); }
+  100% { transform:translate(-38vw, -8vh) scale(1.00); }
+}
+@keyframes drift3{
+  0%   { transform:translate(  0vw,  0vh) scale(1.05); }
+  50%  { transform:translate( 40vw,-38vh) scale(0.90); }
+  100% { transform:translate( 18vw,-20vh) scale(1.10); }
+}
+@keyframes drift4{
+  0%   { transform:translate(  0vw,  0vh) scale(0.95); }
+  40%  { transform:translate(-42vw, 30vh) scale(1.10); }
+  100% { transform:translate(-18vw, 50vh) scale(1.00); }
+}
+
 /* ── Quote overlay ────────────────────────────────────── */
 #quote-overlay{
   position:absolute;
@@ -409,8 +451,13 @@ body:not(.home-mode) .home-only{display:none!important}
 </head>
 <body>
 
-<!-- ══ BACKGROUND CANVAS ═══════════════════════════ -->
-<canvas id="bg-canvas" style="position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;"></canvas>
+<!-- ══ BACKGROUND BLOBS ═════════════════════════════ -->
+<div id="bg-blobs">
+  <div class="blob" id="blob1"></div>
+  <div class="blob" id="blob2"></div>
+  <div class="blob" id="blob3"></div>
+  <div class="blob" id="blob4"></div>
+</div>
 
 <!-- ══ FIRST-RUN PICKER ════════════════════════════════ -->
 <div id="mode-picker">
@@ -678,9 +725,14 @@ body:not(.home-mode) .home-only{display:none!important}
   <div class="menu-item work-only" data-info="off"><span class="menu-dot"></span>Time Only</div>
   <div class="menu-item work-only" data-info="on"><span class="menu-dot"></span>Time, Date &amp; Weather</div>
   <div class="menu-divider work-only"></div>
-  <div class="menu-section-title work-only">Quotes</div>
-  <div class="menu-item work-only" id="quote-toggle-work"><span class="menu-dot"></span>Inspirational Quotes
-    <span style="margin-left:auto;font-size:11px;color:rgba(255,255,255,0.3)" id="quote-status-work">OFF</span>
+  <div class="menu-section-title work-only">Display Panel</div>
+  <div class="menu-item work-only selected" data-cardmode="off" id="cm-off-work"><span class="menu-dot"></span>Off
+  </div>
+  <div class="menu-item work-only" data-cardmode="quotes" id="cm-quotes-work"><span class="menu-dot"></span>Quotes Only
+  </div>
+  <div class="menu-item work-only" data-cardmode="quotes-jokes" id="cm-qj-work"><span class="menu-dot"></span>Quotes + Jokes
+  </div>
+  <div class="menu-item work-only" data-cardmode="all" id="cm-all-work"><span class="menu-dot"></span>Quotes + Jokes + Maths
   </div>
   <div class="menu-divider work-only"></div>
   <div class="menu-section-title work-only">Wi-Fi</div>
@@ -694,9 +746,14 @@ body:not(.home-mode) .home-only{display:none!important}
   <div class="menu-item home-only" data-home="time-date-weather"><span class="menu-dot"></span>Time, Date &amp; Weather</div>
   <div class="menu-item home-only" data-home="cycle"><span class="menu-dot"></span>Cycle: Time → Date → Weather</div>
   <div class="menu-divider home-only"></div>
-  <div class="menu-section-title home-only">Quotes</div>
-  <div class="menu-item home-only" id="quote-toggle-home"><span class="menu-dot"></span>Inspirational Quotes
-    <span style="margin-left:auto;font-size:11px;color:rgba(255,255,255,0.3)" id="quote-status-home">OFF</span>
+  <div class="menu-section-title home-only">Display Panel</div>
+  <div class="menu-item home-only selected" data-cardmode="off" id="cm-off-home"><span class="menu-dot"></span>Off
+  </div>
+  <div class="menu-item home-only" data-cardmode="quotes" id="cm-quotes-home"><span class="menu-dot"></span>Quotes Only
+  </div>
+  <div class="menu-item home-only" data-cardmode="quotes-jokes" id="cm-qj-home"><span class="menu-dot"></span>Quotes + Jokes
+  </div>
+  <div class="menu-item home-only" data-cardmode="all" id="cm-all-home"><span class="menu-dot"></span>Quotes + Jokes + Maths
   </div>
   <div class="menu-divider home-only"></div>
   <div class="menu-section-title home-only">Wi-Fi</div>
@@ -1248,7 +1305,7 @@ function applyPalette(name){
   r.style.setProperty('--bg',        p.bg);
   document.querySelectorAll('.palette-swatch').forEach(el=>
     el.classList.toggle('selected',el.dataset.palette===name));
-  window.dispatchEvent(new Event('paletteChanged'));
+  if(typeof updateBlobColours==='function') updateBlobColours();
 }
 
 function applyFont(name){
@@ -1367,111 +1424,110 @@ applyWxStyle(localStorage.getItem('wxStyle')||'words-emoji');
 // Jokes use {q, a} too so the punchline gets a reveal pause.
 const CARDS = [
 
-  // ── Inspirational quotes ────────────────────────────────────────
-  "Kindness starts with one small act.",
-  "A good friend listens with their whole heart.",
-  "Including others is always a great idea.",
-  "One kind word can change someone's whole day.",
-  "Friends lift each other up.",
-  "Sharing is one of the best things you can do.",
-  "Look for ways to help someone today.",
-  "A smile is a gift anyone can give.",
-  "Being kind is always worth it.",
-  "Good friends are good listeners.",
-  "Making mistakes is how we learn.",
-  "Every new skill started with day one.",
-  "Hard things get easier with practice.",
-  "Asking questions is a sign of smart thinking.",
-  "Reading opens doors to new worlds.",
-  "Your brain grows every time you try something new.",
-  "Getting better takes time and that is perfectly fine.",
-  "One small step forward is still progress.",
-  "Trying hard matters more than being perfect.",
-  "You can do hard things.",
-  "It is okay to feel nervous and try anyway.",
-  "Being yourself is something to be proud of.",
-  "Speak up for what you know is right.",
-  "Everyone starts as a beginner.",
-  "You have something special to offer the world.",
-  "It is okay to ask for help.",
-  "Your ideas are worth sharing.",
-  "Keep going — you are doing better than you think.",
-  "We do better when we work together.",
-  "Everyone deserves to feel welcome here.",
-  "Our differences make our class stronger.",
-  "Leave things a little better than you found them.",
-  "Every person in this building matters.",
-  "You belong here.",
+  // ── Inspirational quotes ─────────────────────────────
+  {type:'quote', text:"Kindness starts with one small act."},
+  {type:'quote', text:"A good friend listens with their whole heart."},
+  {type:'quote', text:"Including others is always a great idea."},
+  {type:'quote', text:"One kind word can change someone\'s whole day."},
+  {type:'quote', text:"Friends lift each other up."},
+  {type:'quote', text:"Sharing is one of the best things you can do."},
+  {type:'quote', text:"Look for ways to help someone today."},
+  {type:'quote', text:"A smile is a gift anyone can give."},
+  {type:'quote', text:"Being kind is always worth it."},
+  {type:'quote', text:"Good friends are good listeners."},
+  {type:'quote', text:"Making mistakes is how we learn."},
+  {type:'quote', text:"Every new skill started with day one."},
+  {type:'quote', text:"Hard things get easier with practice."},
+  {type:'quote', text:"Asking questions is a sign of smart thinking."},
+  {type:'quote', text:"Reading opens doors to new worlds."},
+  {type:'quote', text:"Your brain grows every time you try something new."},
+  {type:'quote', text:"Getting better takes time and that is perfectly fine."},
+  {type:'quote', text:"One small step forward is still progress."},
+  {type:'quote', text:"Trying hard matters more than being perfect."},
+  {type:'quote', text:"You can do hard things."},
+  {type:'quote', text:"It is okay to feel nervous and try anyway."},
+  {type:'quote', text:"Being yourself is something to be proud of."},
+  {type:'quote', text:"Speak up for what you know is right."},
+  {type:'quote', text:"Everyone starts as a beginner."},
+  {type:'quote', text:"You have something special to offer the world."},
+  {type:'quote', text:"It is okay to ask for help."},
+  {type:'quote', text:"Your ideas are worth sharing."},
+  {type:'quote', text:"Keep going \u2014 you are doing better than you think."},
+  {type:'quote', text:"We do better when we work together."},
+  {type:'quote', text:"Everyone deserves to feel welcome here."},
+  {type:'quote', text:"Our differences make our class stronger."},
+  {type:'quote', text:"Leave things a little better than you found them."},
+  {type:'quote', text:"Every person in this building matters."},
+  {type:'quote', text:"You belong here."},
 
-  // ── Jokes ──────────────────────────────────────────────────────
-  {q:"Why did the scarecrow win an award?",            a:"🌟 Because he was outstanding in his field!"},
-  {q:"What do you call a sleeping dinosaur?",          a:"🦖 A dino-snore!"},
-  {q:"Why can't Elsa have a balloon?",                a:"❄️ She will let it go!"},
-  {q:"What do you call cheese that isn't yours?",     a:"🧀 Nacho cheese!"},
-  {q:"Why did the bicycle fall over?",                 a:"🚲 Because it was two-tired!"},
-  {q:"What do you call a fish without eyes?",          a:"🐟 A fsh!"},
-  {q:"Why did the maths book look so worried?",        a:"📚 It had too many problems!"},
-  {q:"What do elves learn at school?",                 a:"🧝 The elf-abet!"},
-  {q:"Why did the student eat his homework?",          a:"📝 The teacher told him it was a piece of cake!"},
-  {q:"What do you call a bear with no teeth?",         a:"🐻 A gummy bear!"},
-  {q:"Why did the teacher wear sunglasses?",           a:"😎 Because the students were so bright!"},
-  {q:"What do you call a sneezing cat?",               a:"🐱 A-cat-choo!"},
-  {q:"Why do cows wear bells?",                        a:"🐮 Because their horns don't work!"},
-  {q:"What do you call a lazy kangaroo?",              a:"🦘 A pouch potato!"},
-  {q:"Why did the cookie go to the doctor?",           a:"🍪 It was feeling crummy!"},
-  {q:"What do you get when you cross a snowman and a shark?", a:"🧊 Frostbite!"},
-  {q:"Why did the golfer bring extra socks?",          a:"⛳ In case he got a hole in one!"},
-  {q:"What has hands but cannot clap?",                a:"⏰ A clock!"},
-  {q:"Why don't scientists trust atoms?",             a:"⚛️ Because they make up everything!"},
-  {q:"What do you call a fake noodle?",                a:"🍜 An impasta!"},
+  // ── Jokes ────────────────────────────────────────────
+  {type:'joke', q:"Why did the scarecrow win an award?",            a:"\U0001F31F Because he was outstanding in his field!"},
+  {type:'joke', q:"What do you call a sleeping dinosaur?",          a:"\U0001F996 A dino-snore!"},
+  {type:'joke', q:"Why can\'t Elsa have a balloon?",               a:"\u2744\uFE0F She will let it go!"},
+  {type:'joke', q:"What do you call cheese that isn\'t yours?",    a:"\U0001F9C0 Nacho cheese!"},
+  {type:'joke', q:"Why did the bicycle fall over?",                 a:"\U0001F6B2 Because it was two-tired!"},
+  {type:'joke', q:"What do you call a fish without eyes?",          a:"\U0001F41F A fsh!"},
+  {type:'joke', q:"Why did the maths book look so worried?",        a:"\U0001F4DA It had too many problems!"},
+  {type:'joke', q:"What do elves learn at school?",                 a:"\U0001F9DD The elf-abet!"},
+  {type:'joke', q:"Why did the student eat his homework?",          a:"\U0001F4DD The teacher told him it was a piece of cake!"},
+  {type:'joke', q:"What do you call a bear with no teeth?",         a:"\U0001F43B A gummy bear!"},
+  {type:'joke', q:"Why did the teacher wear sunglasses?",           a:"\U0001F60E Because the students were so bright!"},
+  {type:'joke', q:"What do you call a sneezing cat?",               a:"\U0001F431 A-cat-choo!"},
+  {type:'joke', q:"Why do cows wear bells?",                        a:"\U0001F42E Because their horns don\'t work!"},
+  {type:'joke', q:"What do you call a lazy kangaroo?",              a:"\U0001F998 A pouch potato!"},
+  {type:'joke', q:"Why did the cookie go to the doctor?",           a:"\U0001F36A It was feeling crummy!"},
+  {type:'joke', q:"What do you get when you cross a snowman and a shark?", a:"\U0001F9CA Frostbite!"},
+  {type:'joke', q:"Why did the golfer bring extra socks?",          a:"\u26F3 In case he got a hole in one!"},
+  {type:'joke', q:"What has hands but cannot clap?",                a:"\u23F0 A clock!"},
+  {type:'joke', q:"Why don\'t scientists trust atoms?",            a:"\u269B\uFE0F Because they make up everything!"},
+  {type:'joke', q:"What do you call a fake noodle?",                a:"\U0001F35C An impasta!"},
 
-  // ── Maths questions ────────────────────────────────────────────
-  // Addition & subtraction
-  {q:"🧮  8 + 7 = ?",            a:"✅  8 + 7 = 15"},
-  {q:"🧮  25 + 17 = ?",          a:"✅  25 + 17 = 42"},
-  {q:"🧮  100 − 38 = ?",    a:"✅  100 − 38 = 62"},
-  {q:"🧮  56 + 29 = ?",          a:"✅  56 + 29 = 85"},
-  {q:"🧮  200 − 75 = ?",    a:"✅  200 − 75 = 125"},
-  // Multiplication
-  {q:"✖️  6 × 7 = ?",      a:"✅  6 × 7 = 42"},
-  {q:"✖️  8 × 9 = ?",      a:"✅  8 × 9 = 72"},
-  {q:"✖️  12 × 4 = ?",     a:"✅  12 × 4 = 48"},
-  {q:"✖️  7 × 7 = ?",      a:"✅  7 × 7 = 49"},
-  {q:"✖️  11 × 6 = ?",     a:"✅  11 × 6 = 66"},
-  // Division
-  {q:"÷  36 ÷ 4 = ?",         a:"✅  36 ÷ 4 = 9"},
-  {q:"÷  63 ÷ 9 = ?",         a:"✅  63 ÷ 9 = 7"},
-  {q:"÷  48 ÷ 6 = ?",         a:"✅  48 ÷ 6 = 8"},
-  {q:"÷  72 ÷ 8 = ?",         a:"✅  72 ÷ 8 = 9"},
-  // Fractions & halves
-  {q:"🥧  Half of 64 = ?",      a:"✅  Half of 64 = 32"},
-  {q:"🥧  Half of 130 = ?",     a:"✅  Half of 130 = 65"},
-  {q:"🥧  Double 37 = ?",       a:"✅  Double 37 = 74"},
-  {q:"🥧  Double 48 = ?",       a:"✅  Double 48 = 96"},
-  // Clever / pattern
-  {q:"💡  How many seconds in a minute?",  a:"✅  60 seconds!"},
-  {q:"💡  How many minutes in an hour?",   a:"✅  60 minutes!"},
-  {q:"💡  How many hours in a day?",       a:"✅  24 hours!"},
-  {q:"💡  How many days in a year?",       a:"✅  365 days (366 in a leap year)!"},
-  {q:"💡  How many sides does a hexagon have?",   a:"✅  6 sides!"},
-  {q:"💡  How many sides does an octagon have?",  a:"✅  8 sides!"},
-  {q:"💡  What is 10% of 200?",            a:"✅  10% of 200 = 20"},
-  {q:"💡  What is 25% of 80?",             a:"✅  25% of 80 = 20"},
-  {q:"💡  What is the next prime after 7?", a:"✅  11!"},
-  {q:"💡  Squares: 4, 9, 16, 25, … what's next?", a:"✅  36 (6 × 6)!"},
+  // ── Maths ────────────────────────────────────────────
+  {type:'math', q:"\U0001F9EE  8 + 7 = ?",             a:"\u2705  8 + 7 = 15"},
+  {type:'math', q:"\U0001F9EE  25 + 17 = ?",           a:"\u2705  25 + 17 = 42"},
+  {type:'math', q:"\U0001F9EE  100 \u2212 38 = ?",    a:"\u2705  100 \u2212 38 = 62"},
+  {type:'math', q:"\U0001F9EE  56 + 29 = ?",           a:"\u2705  56 + 29 = 85"},
+  {type:'math', q:"\U0001F9EE  200 \u2212 75 = ?",    a:"\u2705  200 \u2212 75 = 125"},
+  {type:'math', q:"\u2716\uFE0F  6 \xd7 7 = ?",     a:"\u2705  6 \xd7 7 = 42"},
+  {type:'math', q:"\u2716\uFE0F  8 \xd7 9 = ?",     a:"\u2705  8 \xd7 9 = 72"},
+  {type:'math', q:"\u2716\uFE0F  12 \xd7 4 = ?",    a:"\u2705  12 \xd7 4 = 48"},
+  {type:'math', q:"\u2716\uFE0F  7 \xd7 7 = ?",     a:"\u2705  7 \xd7 7 = 49"},
+  {type:'math', q:"\u2716\uFE0F  11 \xd7 6 = ?",    a:"\u2705  11 \xd7 6 = 66"},
+  {type:'math', q:"\u00F7  36 \u00F7 4 = ?",         a:"\u2705  36 \u00F7 4 = 9"},
+  {type:'math', q:"\u00F7  63 \u00F7 9 = ?",         a:"\u2705  63 \u00F7 9 = 7"},
+  {type:'math', q:"\u00F7  48 \u00F7 6 = ?",         a:"\u2705  48 \u00F7 6 = 8"},
+  {type:'math', q:"\u00F7  72 \u00F7 8 = ?",         a:"\u2705  72 \u00F7 8 = 9"},
+  {type:'math', q:"\U0001F967  Half of 64 = ?",       a:"\u2705  Half of 64 = 32"},
+  {type:'math', q:"\U0001F967  Half of 130 = ?",      a:"\u2705  Half of 130 = 65"},
+  {type:'math', q:"\U0001F967  Double 37 = ?",        a:"\u2705  Double 37 = 74"},
+  {type:'math', q:"\U0001F967  Double 48 = ?",        a:"\u2705  Double 48 = 96"},
+  {type:'math', q:"\U0001F4A1  How many seconds in a minute?",  a:"\u2705  60 seconds!"},
+  {type:'math', q:"\U0001F4A1  How many minutes in an hour?",   a:"\u2705  60 minutes!"},
+  {type:'math', q:"\U0001F4A1  How many hours in a day?",       a:"\u2705  24 hours!"},
+  {type:'math', q:"\U0001F4A1  How many days in a year?",       a:"\u2705  365 days (366 in a leap year)!"},
+  {type:'math', q:"\U0001F4A1  How many sides does a hexagon have?",   a:"\u2705  6 sides!"},
+  {type:'math', q:"\U0001F4A1  How many sides does an octagon have?",  a:"\u2705  8 sides!"},
+  {type:'math', q:"\U0001F4A1  What is 10% of 200?",            a:"\u2705  10% of 200 = 20"},
+  {type:'math', q:"\U0001F4A1  What is 25% of 80?",             a:"\u2705  25% of 80 = 20"},
+  {type:'math', q:"\U0001F4A1  What is the next prime after 7?", a:"\u2705  11!"},
+  {type:'math', q:"\U0001F4A1  Squares: 4, 9, 16, 25, \u2026 what\'s next?", a:"\u2705  36 (6 \xd7 6)!"},
 ];
 
 const quoteOverlay  = document.getElementById('quote-overlay');
 const quoteTextEl   = document.getElementById('quote-text');
-const quoteBtnWork  = document.getElementById('quote-toggle-work');
-const quoteBtnHome  = document.getElementById('quote-toggle-home');
-const quoteStatusW  = document.getElementById('quote-status-work');
-const quoteStatusH  = document.getElementById('quote-status-home');
 
-let quotesEnabled  = localStorage.getItem('quotesEnabled') === 'true';
+// cardMode: 'off' | 'quotes' | 'quotes-jokes' | 'all'
+let cardMode       = localStorage.getItem('cardMode') || 'off';
 let quoteTimer     = null;
 let quoteFadeTimer = null;
 let lastQuoteIdx   = -1;
+
+function activePool(){
+  if(cardMode === 'quotes')       return CARDS.filter(c=>c.type==='quote');
+  if(cardMode === 'quotes-jokes') return CARDS.filter(c=>c.type==='quote'||c.type==='joke');
+  if(cardMode === 'all')          return CARDS;
+  return [];
+}
 
 function layoutQuote(){
   if(!quoteTextEl.textContent.trim()) return;
@@ -1517,22 +1573,21 @@ function fadeOut(then){
 }
 
 function showNextQuote(){
+  const pool = activePool();
+  if(!pool.length){ stopQuotes(); return; }
   fadeOut(()=>{
     let idx;
-    do { idx = Math.floor(Math.random() * CARDS.length); }
-    while(idx === lastQuoteIdx && CARDS.length > 1);
+    do { idx = Math.floor(Math.random() * pool.length); }
+    while(pool.length > 1 && pool[idx] === pool[lastQuoteIdx]);
     lastQuoteIdx = idx;
-    const card = CARDS[idx];
+    const card = pool[idx];
 
-    if(typeof card === 'string'){
-      // Plain quote — show and move on after 14 s
-      fadeIn(card, showNextQuote);
+    if(card.type === 'quote'){
+      fadeIn(card.text, showNextQuote);
     } else {
-      // Joke or maths: show question for 8 s, then answer for 8 s
+      // joke or math: question 8 s, then answer 8 s
       fadeIn(card.q, ()=>{
-        fadeOut(()=>{
-          fadeIn(card.a, showNextQuote);
-        });
+        fadeOut(()=>{ fadeIn(card.a, showNextQuote); });
       });
     }
   });
@@ -1554,122 +1609,37 @@ function stopQuotes(){
   document.getElementById('screen-clock').classList.remove('quotes-on');
 }
 
-function applyQuotes(enabled){
-  quotesEnabled = enabled;
-  localStorage.setItem('quotesEnabled', String(enabled));
-  [quoteBtnWork, quoteBtnHome].forEach(btn=>{
-    if(!btn) return;
-    btn.classList.toggle('selected', enabled);
-    btn.querySelector('.menu-dot').style.background = enabled ? '#fff' : '';
+function applyCardMode(mode){
+  cardMode = mode;
+  localStorage.setItem('cardMode', mode);
+  // Update selected state on all card-mode items
+  document.querySelectorAll('[data-cardmode]').forEach(el=>{
+    const on = el.dataset.cardmode === mode;
+    el.classList.toggle('selected', on);
+    el.querySelector('.menu-dot').style.background = on ? '#fff' : '';
   });
-  [quoteStatusW, quoteStatusH].forEach(el=>{
-    if(!el) return;
-    el.textContent = enabled ? 'ON' : 'OFF';
-    el.style.color = enabled ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)';
-  });
-  if(enabled) startQuotes(); else stopQuotes();
+  if(mode === 'off'){
+    stopQuotes();
+  } else {
+    lastQuoteIdx = -1;
+    startQuotes();
+  }
 }
 
-[quoteBtnWork, quoteBtnHome].forEach(btn=>{
-  if(!btn) return;
-  btn.addEventListener('click', e=>{
+document.querySelectorAll('[data-cardmode]').forEach(el=>{
+  el.addEventListener('click', e=>{
     e.stopPropagation();
-    applyQuotes(!quotesEnabled);
+    applyCardMode(el.dataset.cardmode);
     closeMenu();
   });
 });
 
-// Re-layout quote on resize
-window.addEventListener('resize', ()=>{ if(quotesEnabled) layoutQuote(); });
+window.addEventListener('resize', ()=>{ if(cardMode!=='off') layoutQuote(); });
 
-// Initialise quotes
-applyQuotes(quotesEnabled);
+// Initialise
+applyCardMode(cardMode);
 
 
-// ══ SWIRLING GRADIENT BACKGROUND ═════════════════════
-(function(){
-  const canvas = document.getElementById('bg-canvas');
-  const ctx    = canvas.getContext('2d');
-  let W, H, blobs;
-
-  function hexToRgb(hex){
-    const h = hex.replace('#','');
-    const full = h.length===3 ? h.split('').map(c=>c+c).join('') : h;
-    const n = parseInt(full, 16);
-    return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
-  }
-
-  function lerp(a,b,t){ return a+(b-a)*t; }
-
-  function getPaletteColours(){
-    const st   = getComputedStyle(document.documentElement);
-    const bg   = (st.getPropertyValue('--bg')        ||'#000000').trim();
-    const hour = (st.getPropertyValue('--hour-color') ||'#ffffff').trim();
-    const min  = (st.getPropertyValue('--min-color')  ||'#555555').trim();
-    return { bg:hexToRgb(bg), hour:hexToRgb(hour), min:hexToRgb(min) };
-  }
-
-  function makeBlobs(){
-    const c = getPaletteColours();
-    const tints = [
-      { r:lerp(c.bg.r,c.hour.r,0.22), g:lerp(c.bg.g,c.hour.g,0.22), b:lerp(c.bg.b,c.hour.b,0.22) },
-      { r:lerp(c.bg.r,c.min.r, 0.18), g:lerp(c.bg.g,c.min.g, 0.18), b:lerp(c.bg.b,c.min.b, 0.18) },
-      { r:lerp(c.bg.r,c.hour.r,0.14), g:lerp(c.bg.g,c.hour.g,0.14), b:lerp(c.bg.b,c.hour.b,0.14) },
-      { r:lerp(c.bg.r,c.min.r, 0.10), g:lerp(c.bg.g,c.min.g, 0.10), b:lerp(c.bg.b,c.min.b, 0.10) },
-    ];
-    const base = Math.min(W,H);
-    return tints.map((col,i) => ({
-      x:  W*(0.15 + i*0.22),
-      y:  H*(0.2  + (i%2)*0.55),
-      r:  base*(0.5 + i*0.07),
-      vx: (Math.random()-0.5)*0.22,
-      vy: (Math.random()-0.5)*0.16,
-      phase:  Math.random()*Math.PI*2,
-      speed:  0.00035 + Math.random()*0.00025,
-      col,
-    }));
-  }
-
-  function resize(){
-    W = canvas.width  = window.innerWidth;
-    H = canvas.height = window.innerHeight;
-    blobs = makeBlobs();
-  }
-
-  function draw(){
-    const st    = getComputedStyle(document.documentElement);
-    const bgHex = (st.getPropertyValue('--bg')||'#000000').trim();
-    const bg    = hexToRgb(bgHex);
-    ctx.fillStyle = `rgb(${bg.r},${bg.g},${bg.b})`;
-    ctx.fillRect(0,0,W,H);
-
-    blobs.forEach(b=>{
-      b.phase += b.speed;
-      b.x += b.vx + Math.sin(b.phase*1.4)*0.35;
-      b.y += b.vy + Math.cos(b.phase*0.85)*0.28;
-      if(b.x < -b.r*0.4){ b.vx =  Math.abs(b.vx); }
-      if(b.x >  W+b.r*0.4){ b.vx = -Math.abs(b.vx); }
-      if(b.y < -b.r*0.4){ b.vy =  Math.abs(b.vy); }
-      if(b.y >  H+b.r*0.4){ b.vy = -Math.abs(b.vy); }
-
-      const gr = ctx.createRadialGradient(b.x,b.y,0, b.x,b.y,b.r);
-      const {r,g,b:bv} = b.col;
-      gr.addColorStop(0,   `rgba(${r},${g},${bv},0.6)`);
-      gr.addColorStop(0.45,`rgba(${r},${g},${bv},0.2)`);
-      gr.addColorStop(1,   `rgba(${r},${g},${bv},0)`);
-      ctx.fillStyle = gr;
-      ctx.beginPath();
-      ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
-      ctx.fill();
-    });
-
-    requestAnimationFrame(draw);
-  }
-
-  window.addEventListener('paletteChanged', ()=>{ blobs = makeBlobs(); });
-  window.addEventListener('resize', resize);
-  resize();
-  requestAnimationFrame(draw);
 // ── Wi-Fi Speed ───────────────────────────────────────────
 const wifiStrip      = document.getElementById('wifi-strip');
 const wifiSpeedEl    = document.getElementById('wifi-speed');
@@ -1800,7 +1770,24 @@ window.addEventListener('resize', ()=>{ if(wifiEnabled) layoutWifi(); });
 applyWifi(wifiEnabled);
 
 
-})();
+// ── CSS blob colours — updated from palette ────────────────────────
+function updateBlobColours(){
+  const st   = getComputedStyle(document.documentElement);
+  const bg   = (st.getPropertyValue('--bg')        ||'#000000').trim();
+  const hour = (st.getPropertyValue('--hour-color') ||'#ffffff').trim();
+  const min  = (st.getPropertyValue('--min-color')  ||'#555555').trim();
+  const bgEl = document.getElementById('bg-blobs');
+  if(bgEl) bgEl.style.background = bg;
+  const cols = [hour, min, hour, min];
+  const ops  = [0.22, 0.16, 0.13, 0.09];
+  cols.forEach((col, i) => {
+    const el = document.getElementById('blob' + (i+1));
+    if(!el) return;
+    el.style.background = col;
+    el.style.opacity    = ops[i];
+  });
+}
+updateBlobColours();
 
 
 })();
